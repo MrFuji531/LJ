@@ -1,0 +1,51 @@
+.lj-logo {
+  display: block;
+  overflow: visible;
+}
+
+/* Entrance: the two brackets close in on the gap, serifs and feet draw
+   themselves afterwards, then the dot lands. Transform/opacity only. */
+.lj-logo.is-animated .lj-left {
+  animation: lj-in-left 720ms var(--ease) both;
+}
+
+.lj-logo.is-animated .lj-right {
+  animation: lj-in-right 720ms var(--ease) both;
+}
+
+.lj-logo.is-animated .lj-serif,
+.lj-logo.is-animated .lj-foot {
+  animation: lj-draw 520ms var(--ease) 300ms both;
+}
+
+.lj-logo.is-animated .lj-dot {
+  animation: lj-dot 420ms var(--ease) 780ms both;
+}
+
+@keyframes lj-in-left {
+  from { opacity: 0; transform: translateX(-16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes lj-in-right {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes lj-draw {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes lj-dot {
+  from { opacity: 0; transform: scale(0); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* SVG children rotate about the element box unless told otherwise. */
+.lj-logo .lj-left,
+.lj-logo .lj-right,
+.lj-logo .lj-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+}

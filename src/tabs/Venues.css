@@ -1,0 +1,54 @@
+.champ {
+  padding: 13px 15px;
+  background: radial-gradient(120% 160% at 0% 0%, var(--accent-dim), transparent 62%), var(--ink-card);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+}
+
+.champ-label { color: var(--accent); }
+.champ-row { display: flex; align-items: center; gap: 12px; margin-top: 7px; }
+.champ-icon { font-size: 26px; line-height: 1; }
+.champ-name { font-size: 16px; font-weight: 600; }
+.champ-sub { font-size: 12px; color: var(--text-3); margin-top: 1px; }
+.champ-score { font-size: 30px; color: var(--accent); line-height: 1; }
+
+.venue {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  text-align: left;
+  min-height: 0;
+  animation: rise 300ms var(--ease) both;
+}
+
+.venue-rank {
+  font-size: 20px;
+  min-width: 24px;
+  text-align: center;
+  color: var(--text-4);
+  line-height: 1;
+  flex: none;
+}
+
+.venue-rank.is-1 { color: var(--gold); }
+.venue-rank.is-2 { color: #C9CBD1; }
+.venue-rank.is-3 { color: #C68A5B; }
+
+.venue-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.venue-name { font-size: 15px; font-weight: 600; line-height: 1.3; }
+
+.venue-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-4);
+  flex-wrap: wrap;
+}
+
+.venue-todo { font-size: 9px; padding: 2px 7px; color: var(--accent); border-color: var(--accent-dim); }
+.venue-scores { display: flex; gap: 5px; font-size: 12.5px; font-weight: 700; }
+.venue-sep { color: var(--text-4); font-weight: 400; }
+.venue-avg { font-size: 26px; line-height: 1; flex: none; min-width: 44px; text-align: right; }
+
+.two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

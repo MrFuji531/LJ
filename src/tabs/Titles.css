@@ -1,0 +1,153 @@
+.stat-cell-btn { min-height: 0; flex-direction: column; gap: 4px; width: 100%; }
+.stat-cell-btn .stat-cell-value { display: grid; place-items: center; }
+
+.center-note { text-align: center; font-size: 12.5px; padding: 6px 0; }
+
+/* ---------- title card ---------- */
+
+.title-card {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  padding: 10px;
+  text-align: left;
+  min-height: 0;
+  animation: rise 300ms var(--ease) both;
+}
+
+.title-poster { width: 58px; }
+
+.title-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 2px 0; }
+
+.title-name {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.28;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.title-meta { font-size: 11.5px; color: var(--text-4); display: flex; gap: 5px; }
+
+.title-genres { display: flex; gap: 4px; flex-wrap: wrap; }
+.title-genre { font-size: 9px; padding: 2px 7px; letter-spacing: 0.06em; }
+
+.title-scores { display: flex; align-items: center; gap: 6px; margin-top: auto; font-size: 13px; font-weight: 700; }
+.title-scores-sep { color: var(--text-4); font-weight: 400; }
+
+.title-nudge {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  margin-left: 2px;
+}
+
+.title-avg {
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0 6px 0 2px;
+  min-width: 52px;
+}
+
+.title-avg-value { font-size: 27px; line-height: 1; color: var(--text); }
+
+/* ---------- add sheet ---------- */
+
+.hits { display: flex; flex-direction: column; gap: 8px; }
+
+.hit {
+  display: flex;
+  gap: 11px;
+  padding: 9px;
+  background: var(--ink-inset);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  text-align: left;
+  min-height: 0;
+  align-items: flex-start;
+}
+
+.hit-poster { width: 46px; }
+.hit-title { font-size: 14px; font-weight: 600; line-height: 1.3; }
+.hit-year { font-size: 11px; color: var(--text-4); margin-top: 1px; }
+
+.hit-blurb {
+  font-size: 11.5px;
+  color: var(--text-3);
+  line-height: 1.45;
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------- edit sheet ---------- */
+
+.edit-head { display: flex; gap: 14px; align-items: flex-start; }
+.edit-poster { width: 92px; }
+
+.edit-facts { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.edit-facts > div { display: flex; flex-direction: column; gap: 1px; }
+
+.edit-blurb { font-size: 13px; line-height: 1.6; color: var(--text-2); }
+
+.their-note {
+  padding: 12px 14px;
+  background: var(--ink-inset);
+  border-radius: var(--r-sm);
+  border-left: 2px solid var(--gold);
+}
+
+.their-note p { font-size: 13px; line-height: 1.55; color: var(--text-2); margin-top: 4px; }
+
+/* ---------- insights ---------- */
+
+.ins-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+
+.ins-cell {
+  text-align: center;
+  padding: 12px 4px;
+  background: var(--ink-inset);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+.ins-value { font-size: 24px; line-height: 1; margin-bottom: 4px; }
+
+.ins-bar-row { display: flex; align-items: center; gap: 9px; }
+.ins-bar-label { font-size: 12.5px; width: 84px; flex: none; color: var(--text-2); }
+
+.ins-bar {
+  flex: 1;
+  height: 7px;
+  background: var(--ink-inset);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+.ins-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-lit));
+  border-radius: var(--r-pill);
+}
+
+.ins-bar-value { font-size: 12px; font-weight: 700; width: 26px; text-align: right; }
+.ins-bar-n { width: 22px; text-align: right; }
+
+.ins-note {
+  padding: 12px 14px;
+  background: var(--ink-inset);
+  border-radius: var(--r-sm);
+}
+
+.ins-note p { font-size: 13px; line-height: 1.5; color: var(--text-2); margin-top: 5px; }
+.ins-note strong { color: var(--text); }

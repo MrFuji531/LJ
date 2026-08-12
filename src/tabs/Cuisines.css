@@ -1,0 +1,220 @@
+/* ---------- wheel ---------- */
+
+.wheel-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  margin: 6px auto 0;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+
+.wheel-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 18px 46px rgba(0, 0, 0, 0.6));
+}
+
+.wheel-needle {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  width: 0;
+  height: 0;
+  border-left: 11px solid transparent;
+  border-right: 11px solid transparent;
+  border-top: 19px solid var(--gold);
+  filter: drop-shadow(0 3px 7px rgba(233, 180, 76, 0.6));
+}
+
+/* The picker sits in the hub hole and is the thing you actually read. */
+.pick {
+  position: absolute;
+  z-index: 2;
+  width: 74%;
+  height: 190px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  /* Feather the ends so rows dissolve rather than clip. */
+  mask-image: linear-gradient(180deg, transparent, #000 26%, #000 74%, transparent);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 26%, #000 74%, transparent);
+}
+
+.pick-row {
+  height: 38px;
+  line-height: 38px;
+  flex: none;
+  width: 100%;
+  text-align: center;
+  font-family: var(--font-ui);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 6px;
+  /* --d is angular distance from the needle, set per frame in JS. */
+  font-size: calc(19px - var(--d, 0) * 3.4px);
+  font-weight: calc(700 - var(--d, 0) * 90);
+  opacity: calc(1 - var(--d, 0) * 0.34);
+  color: var(--text);
+  text-shadow: 0 2px 12px rgba(10, 7, 8, 0.95), 0 0 30px rgba(10, 7, 8, 0.9);
+  will-change: transform;
+}
+
+.pick-row.is-focus { color: var(--gold-lit); }
+
+/* Marks the row the needle has actually landed on. */
+.pick-band {
+  position: absolute;
+  z-index: 1;
+  width: 66%;
+  height: 38px;
+  border-radius: var(--r-sm);
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(233, 180, 76, 0.13), transparent);
+  border-top: 1px solid rgba(233, 180, 76, 0.28);
+  border-bottom: 1px solid rgba(233, 180, 76, 0.28);
+}
+
+.spin-btn {
+  min-height: 56px;
+  font-size: 15.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  box-shadow: 0 12px 34px -12px var(--gold);
+}
+
+/* ---------- landed ---------- */
+
+.landed {
+  padding: 22px 18px 18px;
+  text-align: center;
+  background: radial-gradient(90% 120% at 50% 0%, var(--gold-dim), transparent 66%), var(--ink-card);
+  border-color: #E9B44C3D;
+  animation: pop 420ms var(--ease) both;
+}
+
+.landed-eyebrow { color: var(--gold); }
+.landed-flag { font-size: 52px; line-height: 1.1; margin: 6px 0 2px; }
+.landed-name { font-size: 33px; margin-bottom: 16px; line-height: 1.06; }
+.landed-actions { display: flex; flex-direction: column; gap: 8px; }
+.landed-actions .btn-accent { min-height: 50px; }
+
+/* ---------- placing ---------- */
+
+.place-hint { font-size: 12.5px; line-height: 1.55; }
+
+.place-list { display: flex; flex-direction: column; }
+
+.place-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  background: var(--ink-inset);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 14px;
+}
+
+.place-rank { font-size: 11px; color: var(--text-4); min-width: 16px; }
+.place-flag { font-size: 17px; }
+
+.place-slot {
+  width: 100%;
+  min-height: 42px;
+  gap: 10px;
+  padding: 0 4px;
+  color: var(--text-4);
+  transition: color var(--fast) linear, transform 90ms var(--ease-inout);
+}
+
+.place-slot-line { flex: 1; height: 1px; background: var(--line); transition: background-color var(--fast) linear; }
+
+.place-slot-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.place-slot:hover,
+.place-slot[data-pressed='true'] { color: var(--gold); }
+.place-slot:hover .place-slot-line,
+.place-slot[data-pressed='true'] .place-slot-line { background: var(--gold); }
+
+/* ---------- rankings ---------- */
+
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 13px;
+  animation: rise 280ms var(--ease) both;
+}
+
+.rank-medal {
+  font-size: 21px;
+  min-width: 26px;
+  text-align: center;
+  color: var(--text-4);
+  line-height: 1;
+}
+
+.rank-medal.is-1 { color: var(--gold); }
+.rank-medal.is-2 { color: #C9CBD1; }
+.rank-medal.is-3 { color: #C68A5B; }
+
+.rank-flag { font-size: 21px; line-height: 1; }
+.rank-name { font-size: 14.5px; font-weight: 600; }
+.rank-tools { display: flex; gap: 3px; }
+
+.icon-btn {
+  min-height: 32px;
+  width: 32px;
+  border-radius: var(--r-xs);
+  background: var(--ink-inset);
+  border: 1px solid var(--line);
+  color: var(--text-3);
+  flex: none;
+  transition: color var(--fast) linear, border-color var(--fast) linear,
+    transform 90ms var(--ease-inout);
+}
+
+.icon-btn.is-danger { color: var(--rose); }
+.icon-btn .rot-up { transform: rotate(-90deg); }
+.icon-btn .rot-down { transform: rotate(90deg); }
+
+/* ---------- elsewhere ---------- */
+
+.away-row { padding: 13px 15px; display: flex; flex-direction: column; gap: 8px; animation: rise 280ms var(--ease) both; }
+.away-head { display: flex; align-items: center; gap: 10px; }
+.away-flag { font-size: 22px; line-height: 1; }
+.away-name { font-size: 15px; font-weight: 600; }
+
+.away-where {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--gold);
+  line-height: 1.45;
+}
+
+.away-where svg { flex: none; margin-top: 2px; }
+
+.away-notes {
+  font-size: 12.5px;
+  color: var(--text-3);
+  line-height: 1.55;
+  padding-left: 20px;
+}

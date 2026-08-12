@@ -1,0 +1,325 @@
+/* ==========================================================================
+   LJ — base layer
+   Everything here exists to stop the app feeling like a web page on iOS.
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  /* No blue-grey flash on tap. The pressed state is ours to draw. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  background: var(--ink);
+  /* Belt-and-braces against the iOS rubber-band showing white behind the app */
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--ink);
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Long-press should never offer "Copy / Look Up" on chrome. */
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+/* …but text the user actually wrote stays selectable. */
+input,
+textarea,
+[contenteditable],
+.selectable {
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* A warm film grain over everything — kills banding on the dark gradients
+   and stops the flat areas reading as "default dark mode". */
+body::after {
+  content: '';
+  position: fixed;
+  inset: -50%;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#root {
+  min-height: 100dvh;
+  isolation: isolate;
+}
+
+/* --- typography ---------------------------------------------------------- */
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+/* Small caps-ish label used all over the app for section headers. */
+.eyebrow {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* --- controls ------------------------------------------------------------ */
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+button {
+  cursor: pointer;
+  /* Kills the 300 ms tap delay and double-tap-to-zoom on controls. */
+  touch-action: manipulation;
+  /* Apple's minimum comfortable target. */
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+/* The single most important detail for native feel: the pressed state is
+   driven by pointerdown (finger DOWN), not click (finger UP). `data-pressed`
+   is set by a global listener in main.tsx. Only transform/opacity animate,
+   so it stays on the compositor at 120 Hz. */
+[data-pressable] {
+  transition: transform 90ms var(--ease-inout), opacity 90ms linear,
+    background-color var(--fast) linear, border-color var(--fast) linear;
+  will-change: transform;
+}
+
+[data-pressable][data-pressed='true'] {
+  transform: scale(0.965);
+  opacity: 0.88;
+}
+
+/* Larger surfaces shouldn't squash as much or it looks rubbery. */
+[data-pressable][data-press-scale='subtle'][data-pressed='true'] {
+  transform: scale(0.99);
+}
+
+input,
+textarea {
+  width: 100%;
+  background: var(--ink-inset);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: 16px; /* < 16px makes iOS zoom the viewport on focus */
+  transition: border-color var(--fast) linear, background-color var(--fast) linear;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-4);
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--ink-hover);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 76px;
+  line-height: 1.55;
+}
+
+/* --- scrolling ----------------------------------------------------------- */
+
+.scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.scroll-x::-webkit-scrollbar,
+.scroll-y::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-y {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  overscroll-behavior-y: contain;
+}
+
+/* --- shared primitives --------------------------------------------------- */
+
+.card {
+  background: var(--ink-card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spread {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.grow { flex: 1; min-width: 0; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.btn {
+  padding: 0 18px;
+  border-radius: var(--r-pill);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+}
+
+.btn-accent {
+  background: var(--accent);
+  color: #14090C;
+  font-weight: 700;
+}
+
+.btn-quiet {
+  background: var(--ink-inset);
+  border-color: var(--line);
+  color: var(--text-2);
+}
+
+.btn-outline {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.btn-danger {
+  background: #E8446B1F;
+  border-color: #E8446B4D;
+  color: var(--rose-lit);
+}
+
+.btn-block { width: 100%; }
+.btn-sm { min-height: 36px; font-size: 13px; padding: 0 13px; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--ink-inset);
+  border: 1px solid var(--line);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.divider {
+  height: 1px;
+  background: var(--line-soft);
+  border: 0;
+}
+
+/* --- animation ----------------------------------------------------------- */
+
+@keyframes rise {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pop {
+  0%   { transform: scale(0.9); opacity: 0; }
+  60%  { transform: scale(1.03); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+.rise { animation: rise var(--med) var(--ease) both; }
+.fade { animation: fade var(--med) linear both; }
+
+/* Respect the accessibility setting rather than assuming everyone wants motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

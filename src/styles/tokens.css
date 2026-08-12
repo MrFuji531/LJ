@@ -1,0 +1,100 @@
+/* ==========================================================================
+   LJ — design tokens
+   A warm, near-black ground (never blue-grey) with oxblood + champagne.
+   Every tab carries its own accent so the app reads as eight rooms in one house.
+   ========================================================================== */
+
+:root {
+  /* --- ground ------------------------------------------------------------ */
+  --ink:        #0A0708;  /* page */
+  --ink-raised: #100B0D;  /* sticky chrome */
+  --ink-card:   #171013;  /* cards */
+  --ink-inset:  #1F1619;  /* wells, inputs, track backgrounds */
+  --ink-hover:  #241A1E;
+
+  --line:       #2A1E22;
+  --line-soft:  #201619;
+  --line-loud:  #3B2B30;
+
+  /* --- type -------------------------------------------------------------- */
+  --text:    #F4EBE6;  /* warm off-white, not pure #fff */
+  --text-2:  #B9A69F;
+  --text-3:  #7C6A66;
+  --text-4:  #574A47;
+
+  /* --- accents ----------------------------------------------------------- */
+  --rose:      #E8446B;
+  --rose-lit:  #FF6A88;
+  --rose-dim:  #E8446B26;
+  --gold:      #E9B44C;
+  --gold-lit:  #FFD27A;
+  --gold-dim:  #E9B44C26;
+  --jade:      #45C79B;
+  --jade-dim:  #45C79B26;
+  --flame:     #FF7A45;
+  --flame-dim: #FF7A4526;
+  --violet:    #A87CFF;
+  --violet-dim:#A87CFF26;
+  --cyan:      #4FC4D6;
+  --cyan-dim:  #4FC4D626;
+  --indigo:    #7B8CFF;
+  --indigo-dim:#7B8CFF26;
+  --leaf:      #8DC63F;
+  --leaf-dim:  #8DC63F26;
+  --marvel:    #ED3F3F;
+  --marvel-dim:#ED3F3F26;
+
+  /* Set per-tab by <main data-tab="…">; everything chrome-coloured reads these. */
+  --accent:     var(--rose);
+  --accent-lit: var(--rose-lit);
+  --accent-dim: var(--rose-dim);
+
+  /* --- type scale -------------------------------------------------------- */
+  --font-display: 'Bodoni Moda', 'Times New Roman', serif;
+  --font-ui: 'Space Grotesk Variable', 'Space Grotesk', -apple-system, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+
+  /* --- geometry ---------------------------------------------------------- */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 22px;
+  --r-xl: 28px;
+  --r-pill: 999px;
+
+  --pad: 16px;
+  --gap: 12px;
+
+  /* --- depth ------------------------------------------------------------- */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.66);
+  --glow: 0 0 0 1px var(--accent-dim), 0 8px 30px -8px var(--accent);
+
+  /* --- motion ------------------------------------------------------------ */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);      /* out-expo-ish, for entrances */
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --fast: 140ms;
+  --med: 260ms;
+  --slow: 460ms;
+
+  /* --- safe areas -------------------------------------------------------- */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+
+  --header-h: 116px;
+  --nav-h: 62px;
+}
+
+/* Per-tab accent assignment. */
+[data-tab='positions'] { --accent: var(--rose);   --accent-lit: var(--rose-lit);   --accent-dim: var(--rose-dim); }
+[data-tab='cuisines']  { --accent: var(--gold);   --accent-lit: var(--gold-lit);   --accent-dim: var(--gold-dim); }
+[data-tab='movies']    { --accent: var(--violet); --accent-lit: #C4A6FF;           --accent-dim: var(--violet-dim); }
+[data-tab='shows']     { --accent: var(--cyan);   --accent-lit: #7FDCEA;           --accent-dim: var(--cyan-dim); }
+[data-tab='watchlist'] { --accent: var(--indigo); --accent-lit: #A3AEFF;           --accent-dim: var(--indigo-dim); }
+[data-tab='mcu']       { --accent: var(--marvel); --accent-lit: #FF7373;          --accent-dim: var(--marvel-dim); }
+[data-tab='nachos']    { --accent: var(--flame);  --accent-lit: #FFA07A;           --accent-dim: var(--flame-dim); }
+[data-tab='salads']    { --accent: var(--leaf);   --accent-lit: #B4E06B;           --accent-dim: var(--leaf-dim); }
+[data-tab='todo']      { --accent: var(--jade);   --accent-lit: #7BE0BE;           --accent-dim: var(--jade-dim); }

@@ -1,0 +1,27 @@
+.app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  /* Accent transitions between tabs instead of snapping. */
+  transition: none;
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 14px calc(var(--pad) + var(--safe-l)) calc(var(--nav-h) + var(--safe-b) + 96px)
+    calc(var(--pad) + var(--safe-r));
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  animation: rise 320ms var(--ease) both;
+}
+
+.splash {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(120% 80% at 50% 30%, #1A1013 0%, var(--ink) 62%);
+}

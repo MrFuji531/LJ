@@ -1,0 +1,59 @@
+.set-block { display: flex; flex-direction: column; gap: 10px; }
+
+.set-people { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+
+.set-person {
+  flex-direction: column;
+  gap: 4px;
+  padding: 13px 10px;
+  border-radius: var(--r-md);
+  background: var(--ink-inset);
+  border: 1.5px solid var(--line);
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.set-person.is-me { border-color: var(--who); color: var(--who); background: color-mix(in srgb, var(--who) 10%, transparent); }
+.set-person-initial { font-size: 24px; line-height: 1; color: var(--who); }
+
+.set-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  background: var(--ink-inset);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.set-hint { font-size: 11px; color: var(--text-4); }
+
+.set-import { cursor: pointer; }
+
+.set-toggle {
+  align-self: flex-start;
+  padding: 0;
+  min-height: 34px;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.set-toggle .rot-down { transform: rotate(90deg); }
+
+.set-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 14px 0 4px;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 12px;
+  color: var(--text-4);
+  opacity: 0.7;
+}

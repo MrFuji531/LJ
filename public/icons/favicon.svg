@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <!-- userSpaceOnUse: straight strokes have zero-area bounding boxes and
+         would not paint with the default objectBoundingBox units. -->
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="22" y1="28" x2="98" y2="84">
+      <stop offset="0%" stop-color="#FF6A88"/>
+      <stop offset="55%" stop-color="#E8446B"/>
+      <stop offset="100%" stop-color="#E9B44C"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="27" fill="#0A0708"/>
+  <g stroke="url(#g)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M35 34 V 76" stroke-width="9"/>
+    <path d="M29 34 H 48" stroke-width="3.6"/>
+    <path d="M35 76 H 55" stroke-width="3.6"/>
+    <path d="M85 34 V 65" stroke-width="9"/>
+    <path d="M72 34 H 91" stroke-width="3.6"/>
+    <path d="M85 65 Q 85 76 74 76 H 65" stroke-width="3.6"/>
+  </g>
+  <circle cx="60" cy="76" r="2.6" fill="#E9B44C"/>
+</svg>

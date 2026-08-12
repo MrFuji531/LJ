@@ -1,0 +1,170 @@
+/* ---------- progress ---------- */
+
+.mcu-progress {
+  padding: 15px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  background: radial-gradient(120% 150% at 100% 0%, var(--accent-dim), transparent 60%), var(--ink-card);
+}
+
+.mcu-progress-count { font-size: 30px; line-height: 1.05; margin-top: 2px; }
+.mcu-of { font-size: 15px; color: var(--text-3); }
+.mcu-progress-pct { font-size: 30px; color: var(--accent); line-height: 1; }
+
+.mcu-bar {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--ink-inset);
+  overflow: hidden;
+}
+
+.mcu-bar-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, var(--accent), var(--accent-lit));
+  transition: width 700ms var(--ease);
+}
+
+.mcu-next {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  min-height: 42px;
+  border-radius: var(--r-sm);
+  background: var(--ink-inset);
+  border: 1px solid var(--line);
+  color: var(--text-3);
+  text-align: left;
+}
+
+.mcu-next .eyebrow { flex: none; color: var(--accent); }
+.mcu-next-title { flex: 1; font-size: 13.5px; font-weight: 600; color: var(--text); min-width: 0; }
+
+/* ---------- phases ---------- */
+
+.mcu-phase { gap: 7px; }
+
+.mcu-phase-head { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.mcu-phase-line { flex: 1; height: 1px; background: var(--line); }
+
+/* ---------- film rows ---------- */
+
+.mcu-film {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 12px 8px 8px;
+  text-align: left;
+  min-height: 0;
+  opacity: 0.62;
+  transition: opacity var(--med) linear, border-color var(--med) linear;
+}
+
+.mcu-film.is-watched { opacity: 1; border-color: color-mix(in srgb, var(--accent) 24%, var(--line)); }
+
+.mcu-order {
+  font-size: 10.5px;
+  color: var(--text-4);
+  min-width: 18px;
+  text-align: center;
+  flex: none;
+}
+
+.mcu-poster { width: 38px; border-radius: var(--r-xs); }
+
+.mcu-film-body { min-width: 0; }
+.mcu-film-title { font-size: 14px; font-weight: 600; line-height: 1.3; }
+.mcu-film-meta { font-size: 11px; color: var(--text-4); margin-top: 1px; }
+
+.mcu-score { font-size: 21px; color: var(--accent); line-height: 1; flex: none; min-width: 34px; text-align: right; }
+
+.mcu-unwatched {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-loud);
+  flex: none;
+}
+
+/* ---------- avatars ---------- */
+
+.avatar {
+  flex: none;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--who) 16%, var(--ink-inset));
+  border: 1.5px solid color-mix(in srgb, var(--who) 42%, transparent);
+}
+
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar-initials { color: var(--who); line-height: 1; letter-spacing: 0.02em; }
+
+/* ---------- character board ---------- */
+
+.mcu-char {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 13px;
+  text-align: left;
+  min-height: 0;
+  animation: rise 280ms var(--ease) both;
+}
+
+.mcu-char-rank {
+  font-size: 19px;
+  min-width: 21px;
+  text-align: center;
+  color: var(--text-4);
+  line-height: 1;
+  flex: none;
+}
+
+.mcu-char-rank.is-1 { color: var(--gold); }
+.mcu-char-rank.is-2 { color: #C9CBD1; }
+.mcu-char-rank.is-3 { color: #C68A5B; }
+
+.mcu-char-body { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mcu-char-name { font-size: 14.5px; font-weight: 600; line-height: 1.3; }
+.mcu-char-meta { font-size: 11px; color: var(--text-4); display: flex; gap: 5px; }
+.mcu-dot { opacity: 0.6; }
+.mcu-char-scores { display: flex; gap: 5px; font-size: 12px; font-weight: 700; }
+.mcu-sep { color: var(--text-4); font-weight: 400; }
+.mcu-char-avg { font-size: 24px; line-height: 1; flex: none; min-width: 40px; text-align: right; }
+
+/* ---------- sheets ---------- */
+
+.mcu-char-head { display: flex; gap: 14px; align-items: flex-start; }
+
+.mcu-mini-list { display: flex; flex-direction: column; gap: 6px; }
+
+.mcu-mini {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 11px 6px 7px;
+  min-height: 46px;
+  border-radius: var(--r-sm);
+  background: var(--ink-inset);
+  border: 1px solid var(--line);
+  font-size: 13.5px;
+  text-align: left;
+}
+
+.mcu-mini-score { font-size: 12.5px; font-weight: 700; color: var(--text-2); flex: none; }
+
+.mcu-add-row { display: flex; gap: 6px; }
+
+.mcu-select {
+  width: 100%;
+  background: var(--ink-inset);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  font-size: 16px;
+  color: var(--text);
+}

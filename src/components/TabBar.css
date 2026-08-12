@@ -1,0 +1,91 @@
+.nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 250;
+  padding-bottom: var(--safe-b);
+  background: linear-gradient(0deg, rgba(10, 7, 8, 0.97) 60%, rgba(10, 7, 8, 0.78) 100%);
+  backdrop-filter: blur(22px) saturate(1.5);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  border-top: 1px solid var(--line-soft);
+}
+
+.nav-rail {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: var(--nav-h);
+  padding: 0 max(6px, var(--safe-l)) 0 max(6px, var(--safe-r));
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.nav-item {
+  /* Inactive tabs shrink to their icon so all eight fit without scrolling. */
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 2px;
+  gap: 0;
+  color: var(--text-4);
+  border-radius: var(--r-pill);
+  position: relative;
+  transition: color var(--med) linear, flex-grow var(--med) var(--ease),
+    background-color var(--med) linear, padding var(--med) var(--ease),
+    transform 90ms var(--ease-inout);
+}
+
+.nav-icon {
+  display: grid;
+  place-items: center;
+  height: 20px;
+  flex: none;
+  transition: transform 240ms var(--ease);
+}
+
+/* Label is laid out but collapsed until this tab is the active one. */
+.nav-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-width var(--med) var(--ease), opacity 160ms linear,
+    margin-left var(--med) var(--ease);
+}
+
+.nav-item.is-active {
+  flex: 0 0 auto;
+  padding: 0 13px 0 11px;
+  background: var(--nav-tint);
+  color: var(--nav-accent);
+}
+
+.nav-item.is-active .nav-icon { transform: scale(1.04); }
+
+.nav-item.is-active .nav-label {
+  max-width: 90px;
+  opacity: 1;
+  margin-left: 7px;
+}
+
+/* Each room keeps its own colour, so the rail reads as eight places rather
+   than eight copies of whatever is currently open. */
+.nav-item[data-tab='positions'] { --nav-accent: var(--rose);   --nav-tint: var(--rose-dim); }
+.nav-item[data-tab='cuisines']  { --nav-accent: var(--gold);   --nav-tint: var(--gold-dim); }
+.nav-item[data-tab='movies']    { --nav-accent: var(--violet); --nav-tint: var(--violet-dim); }
+.nav-item[data-tab='shows']     { --nav-accent: var(--cyan);   --nav-tint: var(--cyan-dim); }
+.nav-item[data-tab='watchlist'] { --nav-accent: var(--indigo); --nav-tint: var(--indigo-dim); }
+.nav-item[data-tab='mcu']       { --nav-accent: var(--marvel); --nav-tint: var(--marvel-dim); }
+.nav-item[data-tab='nachos']    { --nav-accent: var(--flame);  --nav-tint: var(--flame-dim); }
+.nav-item[data-tab='salads']    { --nav-accent: var(--leaf);   --nav-tint: var(--leaf-dim); }
+.nav-item[data-tab='todo']      { --nav-accent: var(--jade);   --nav-tint: var(--jade-dim); }
+
+/* Very narrow phones: let it pan rather than crush the icons. */
+@media (max-width: 340px) {
+  .nav-rail { justify-content: flex-start; }
+  .nav-item { flex: 0 0 auto; min-width: 40px; }
+}

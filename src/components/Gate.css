@@ -1,0 +1,138 @@
+.gate {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  padding: calc(40px + var(--safe-t)) 24px calc(30px + var(--safe-b));
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(120% 70% at 50% 22%, #1E1116 0%, var(--ink) 60%);
+}
+
+/* Slow warm bloom behind the mark. */
+.gate-glow {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  width: min(560px, 130vw);
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(232, 68, 107, 0.16), transparent 62%);
+  filter: blur(28px);
+  animation: gate-breathe 7s ease-in-out infinite;
+}
+
+@keyframes gate-breathe {
+  0%, 100% { opacity: 0.75; transform: translateX(-50%) scale(1); }
+  50%      { opacity: 1;    transform: translateX(-50%) scale(1.07); }
+}
+
+.gate-mark { position: relative; z-index: 1; }
+
+.gate-panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 330px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.gate-kicker { text-align: center; letter-spacing: 0.2em; }
+
+/* ---------- people ---------- */
+
+.gate-people {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+}
+
+.person {
+  flex-direction: column;
+  gap: 8px;
+  padding: 22px 12px 16px;
+  min-height: 128px;
+  border-radius: var(--r-lg);
+  background: var(--ink-card);
+  border: 1px solid var(--line);
+  color: var(--text-2);
+  animation: rise 420ms var(--ease) both;
+  transition: border-color var(--med) linear, background-color var(--med) linear,
+    transform 90ms var(--ease-inout), box-shadow var(--med) linear;
+}
+
+.person:hover,
+.person[data-pressed='true'] {
+  border-color: var(--who);
+  background: var(--ink-hover);
+  box-shadow: 0 10px 34px -14px var(--who);
+}
+
+.person-initial {
+  font-size: 42px;
+  line-height: 0.9;
+  color: var(--who);
+}
+
+.person-name {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ---------- passcode ---------- */
+
+.gate-back {
+  min-height: 32px;
+  font-size: 12px;
+  color: var(--text-3);
+  gap: 4px;
+  padding: 0;
+}
+
+.gate-back .flip { transform: rotate(180deg); }
+
+.gate-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.gate-input {
+  text-align: center;
+  letter-spacing: 0.3em;
+  font-size: 17px;
+  padding: 15px 14px;
+  border-radius: var(--r-md);
+}
+
+.gate-go {
+  min-height: 50px;
+  font-size: 15px;
+}
+
+.gate-error {
+  font-size: 12.5px;
+  color: var(--rose-lit);
+  text-align: center;
+  animation: fade 200ms linear both;
+}
+
+.gate-foot {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--text-4);
+  letter-spacing: 0.04em;
+}
