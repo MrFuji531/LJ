@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { registerSW } from 'virtual:pwa-register'
 
 import '@fontsource/bodoni-moda/400.css'
 import '@fontsource/bodoni-moda/600.css'
@@ -50,6 +51,28 @@ for (const evt of ['pointerup', 'pointercancel', 'pointerleave', 'scroll'] as co
 
 // Belt-and-braces against iOS pinch/double-tap zoom inside the app shell.
 document.addEventListener('gesturestart', (e) => e.preventDefault())
+
+/* --------------------------------------------------------------------------
+   Updates.
+
+   The bare registration the plugin injects by default downloads a new
+   version silently but never applies it — phones resume the PWA from memory
+   for days, so a deploy could sit invisible indefinitely. This registration
+   (auto-update mode) reloads the moment a new service worker takes control,
+   and re-checks whenever the app comes back to the foreground, so a push
+   lands on the phones the next time the app is opened.
+   -------------------------------------------------------------------------- */
+
+registerSW({
+  immediate: true,
+  onRegisteredSW(_url, reg) {
+    if (!reg) return
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') void reg.update()
+    })
+    setInterval(() => void reg.update(), 60 * 60 * 1000)
+  },
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
