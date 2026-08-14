@@ -46,6 +46,51 @@
   flex-wrap: wrap;
 }
 
+/* ---------- tonight's pick ---------- */
+
+.venue-pick {
+  padding: 22px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+  align-items: center;
+  background: radial-gradient(130% 130% at 50% 0%, var(--accent-dim), transparent 55%), var(--ink-card);
+}
+
+.venue-pick-eyebrow { color: var(--accent); }
+.venue-pick-name { font-size: 30px; line-height: 1.1; text-wrap: balance; }
+
+.venue-pick-meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--text-2);
+  flex-wrap: wrap;
+}
+
+.venue-pick-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.venue-pick-notes { font-size: 13px; color: var(--text-3); line-height: 1.5; }
+.venue-pick .btn-block { width: 100%; }
+.venue-pick .row { width: 100%; }
+
+.venue-video {
+  width: 100%;
+  border-radius: var(--r-md);
+  background: #000;
+  max-height: 60vh;
+}
+
 .venue-todo { font-size: 9px; padding: 2px 7px; color: var(--accent); border-color: var(--accent-dim); }
 .venue-scores { display: flex; gap: 5px; font-size: 12.5px; font-weight: 700; }
 .venue-sep { color: var(--text-4); font-weight: 400; }

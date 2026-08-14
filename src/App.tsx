@@ -11,7 +11,6 @@ import { Logo } from './components/Logo'
 import { PositionsTab } from './tabs/Positions'
 import { CuisinesTab } from './tabs/Cuisines'
 import { TitlesTab } from './tabs/Titles'
-import { WatchlistTab } from './tabs/Watchlist'
 import { McuTab } from './tabs/Mcu'
 import { VenuesTab } from './tabs/Venues'
 import { TodoTab } from './tabs/Todo'
@@ -44,6 +43,12 @@ export function App() {
     void syncClock()
     void flushOutbox()
   }, [session.state.kind])
+
+  // Sheets and the FAB portal into <body>, outside the .app scope — the body
+  // needs the tab attribute too or they lose the room's accent colour.
+  useEffect(() => {
+    document.body.dataset.tab = tab
+  }, [tab])
 
   if (session.state.kind === 'booting') {
     return (
@@ -80,7 +85,6 @@ export function App() {
             {tab === 'cuisines' && <CuisinesTab me={me} />}
             {tab === 'movies' && <TitlesTab kind="movie" me={me} />}
             {tab === 'shows' && <TitlesTab kind="tv" me={me} />}
-            {tab === 'watchlist' && <WatchlistTab me={me} />}
             {tab === 'mcu' && <McuTab me={me} />}
             {tab === 'nachos' && <VenuesTab kind="nachos" me={me} />}
             {tab === 'salads' && <VenuesTab kind="salad" me={me} />}

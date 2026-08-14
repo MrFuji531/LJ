@@ -78,15 +78,36 @@
 .mcu-film-title { font-size: 14px; font-weight: 600; line-height: 1.3; }
 .mcu-film-meta { font-size: 11px; color: var(--text-4); margin-top: 1px; }
 
-.mcu-score { font-size: 21px; color: var(--accent); line-height: 1; flex: none; min-width: 34px; text-align: right; }
+.mcu-film-meta { display: flex; align-items: center; gap: 6px; }
 
-.mcu-unwatched {
-  width: 16px;
-  height: 16px;
+.mcu-chip-show {
+  font-size: 8.5px;
+  padding: 2px 7px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  border-color: transparent;
+  background: var(--accent-dim);
+}
+
+/* the checklist tick */
+.mcu-tick {
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   border: 1.5px solid var(--line-loud);
   flex: none;
+  display: grid;
+  place-items: center;
+  color: #14090C;
+  transition: background-color var(--fast) linear, border-color var(--fast) linear;
 }
+
+.mcu-tick.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.mcu-tick.is-on svg { animation: pop 320ms var(--ease) both; }
 
 /* ---------- avatars ---------- */
 
@@ -113,6 +134,16 @@
   text-align: left;
   min-height: 0;
   animation: rise 280ms var(--ease) both;
+}
+
+.mcu-char-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  text-align: left;
+  min-height: 0;
 }
 
 .mcu-char-rank {

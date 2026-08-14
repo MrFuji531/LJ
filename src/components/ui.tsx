@@ -8,7 +8,13 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import './ui.css'
+
+/* Overlays and floating chrome render into <body> via portals. Anything that
+   lives inside .main is at the mercy of ancestor transforms/filters (a filled
+   entrance animation keeps an identity matrix on .main, which turns it into
+   the containing block for position:fixed and strands sheets off-screen). */
 
 /* ==========================================================================
    Toasts
@@ -84,7 +90,7 @@ export function Sheet({
 
   if (!open) return null
 
-  return (
+  return createPortal(
     <div className="sheet-scrim" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label={title}>
         <div className="sheet-grab" />
@@ -99,7 +105,8 @@ export function Sheet({
         <div className="sheet-body scroll-y">{children}</div>
         {footer && <div className="sheet-foot">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -138,26 +145,28 @@ export function ConfirmHost({ children }: { children: ReactNode }) {
   return (
     <ConfirmCtx.Provider value={ask}>
       {children}
-      {req && (
-        <div className="sheet-scrim" onPointerDown={(e) => e.target === e.currentTarget && settle(false)}>
-          <div className="confirm-card" role="alertdialog" aria-modal="true">
-            <h3 className="confirm-title display">{req.title}</h3>
-            {req.body && <p className="confirm-body">{req.body}</p>}
-            <div className="confirm-actions">
-              <button className="btn btn-quiet grow" onClick={() => settle(false)} data-pressable>
-                Cancel
-              </button>
-              <button
-                className={`btn grow ${req.danger ? 'btn-danger' : 'btn-accent'}`}
-                onClick={() => settle(true)}
-                data-pressable
-              >
-                {req.confirmLabel ?? 'Confirm'}
-              </button>
+      {req &&
+        createPortal(
+          <div className="sheet-scrim" onPointerDown={(e) => e.target === e.currentTarget && settle(false)}>
+            <div className="confirm-card" role="alertdialog" aria-modal="true">
+              <h3 className="confirm-title display">{req.title}</h3>
+              {req.body && <p className="confirm-body">{req.body}</p>}
+              <div className="confirm-actions">
+                <button className="btn btn-quiet grow" onClick={() => settle(false)} data-pressable>
+                  Cancel
+                </button>
+                <button
+                  className={`btn grow ${req.danger ? 'btn-danger' : 'btn-accent'}`}
+                  onClick={() => settle(true)}
+                  data-pressable
+                >
+                  {req.confirmLabel ?? 'Confirm'}
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </ConfirmCtx.Provider>
   )
 }
@@ -172,12 +181,15 @@ export function RatingBar({
   label,
   accent,
   readOnly,
+  max = 10,
 }: {
   value: number | null
   onChange?: (v: number) => void
   label?: string
   accent?: string
   readOnly?: boolean
+  /** Top of the scale — still half-step increments. Films and shows use 5. */
+  max?: number
 }) {
   const trackRef = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState(false)
@@ -188,12 +200,12 @@ export function RatingBar({
       if (!el || !onChange) return
       const r = el.getBoundingClientRect()
       const pct = Math.min(1, Math.max(0, (clientX - r.left) / r.width))
-      onChange(Math.round(pct * 20) / 2)
+      onChange(Math.round(pct * max * 2) / 2)
     },
-    [onChange],
+    [onChange, max],
   )
 
-  const pct = value == null ? 0 : (value / 10) * 100
+  const pct = value == null ? 0 : (value / max) * 100
 
   return (
     <div className="rating">
@@ -217,7 +229,7 @@ export function RatingBar({
         onPointerCancel={() => setDrag(false)}
         role="slider"
         aria-valuemin={0}
-        aria-valuemax={10}
+        aria-valuemax={max}
         aria-valuenow={value ?? 0}
         aria-label={label ?? 'Rating'}
       >
@@ -229,7 +241,7 @@ export function RatingBar({
           <div className="rating-knob" style={{ left: `${pct}%`, background: accent ?? 'var(--accent)' }} />
         )}
         <div className="rating-ticks">
-          {Array.from({ length: 11 }, (_, i) => (
+          {Array.from({ length: max + 1 }, (_, i) => (
             <span key={i} />
           ))}
         </div>
@@ -330,11 +342,12 @@ export function SectionTitle({ children, right }: { children: ReactNode; right?:
 
 /** Floating "+" that sits above the tab bar. */
 export function Fab({ onClick, label = 'Add' }: { onClick: () => void; label?: string }) {
-  return (
+  return createPortal(
     <button className="fab" onClick={onClick} aria-label={label} data-pressable>
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
         <path d="M12 5v14M5 12h14" />
       </svg>
-    </button>
+    </button>,
+    document.body,
   )
 }

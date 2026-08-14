@@ -12,7 +12,7 @@ import { isClockSynced, clockOffset, syncClock } from '../lib/clock'
 
 const TABLES = [
   'lj_app', 'lj_positions', 'lj_equipment', 'lj_cuisines',
-  'lj_titles', 'lj_watchlist', 'lj_venues', 'lj_todos',
+  'lj_titles', 'lj_venues', 'lj_todos',
   'lj_mcu_films', 'lj_mcu_chars',
 ]
 

@@ -59,6 +59,69 @@
 
 .title-avg-value { font-size: 27px; line-height: 1; color: var(--text); }
 
+.title-scores-outof { margin-left: 2px; }
+
+/* Fresh from the reveal: the numbers stamp themselves onto the card. */
+.title-scores.is-stamped .num,
+.title-avg.is-stamped .title-avg-value {
+  animation: score-stamp 700ms var(--ease) both;
+}
+
+.title-avg.is-stamped .title-avg-value { animation-delay: 220ms; }
+
+@keyframes score-stamp {
+  0%   { transform: scale(2.1); opacity: 0; filter: blur(3px); }
+  55%  { transform: scale(0.94); opacity: 1; filter: none; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ---------- queue (to watch / watching) ---------- */
+
+.queue-card {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  padding: 10px;
+  animation: rise 300ms var(--ease) both;
+}
+
+.queue-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 12px;
+  text-align: left;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.queue-chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: auto; }
+
+.chip-new {
+  color: var(--accent);
+  border-color: transparent;
+  background: var(--accent-dim);
+  font-weight: 700;
+}
+
+.chip-turn { color: var(--gold); border-color: #E9B44C44; }
+.chip-wait { color: var(--text-3); }
+
+.queue-rate { align-self: center; flex: none; }
+
+.new-season-banner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  border-radius: var(--r-sm);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  color: var(--accent-lit);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
 /* ---------- add sheet ---------- */
 
 .hits { display: flex; flex-direction: column; gap: 8px; }

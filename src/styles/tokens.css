@@ -93,7 +93,6 @@
 [data-tab='cuisines']  { --accent: var(--gold);   --accent-lit: var(--gold-lit);   --accent-dim: var(--gold-dim); }
 [data-tab='movies']    { --accent: var(--violet); --accent-lit: #C4A6FF;           --accent-dim: var(--violet-dim); }
 [data-tab='shows']     { --accent: var(--cyan);   --accent-lit: #7FDCEA;           --accent-dim: var(--cyan-dim); }
-[data-tab='watchlist'] { --accent: var(--indigo); --accent-lit: #A3AEFF;           --accent-dim: var(--indigo-dim); }
 [data-tab='mcu']       { --accent: var(--marvel); --accent-lit: #FF7373;          --accent-dim: var(--marvel-dim); }
 [data-tab='nachos']    { --accent: var(--flame);  --accent-lit: #FFA07A;           --accent-dim: var(--flame-dim); }
 [data-tab='salads']    { --accent: var(--leaf);   --accent-lit: #B4E06B;           --accent-dim: var(--leaf-dim); }

@@ -78,7 +78,6 @@
 .nav-item[data-tab='cuisines']  { --nav-accent: var(--gold);   --nav-tint: var(--gold-dim); }
 .nav-item[data-tab='movies']    { --nav-accent: var(--violet); --nav-tint: var(--violet-dim); }
 .nav-item[data-tab='shows']     { --nav-accent: var(--cyan);   --nav-tint: var(--cyan-dim); }
-.nav-item[data-tab='watchlist'] { --nav-accent: var(--indigo); --nav-tint: var(--indigo-dim); }
 .nav-item[data-tab='mcu']       { --nav-accent: var(--marvel); --nav-tint: var(--marvel-dim); }
 .nav-item[data-tab='nachos']    { --nav-accent: var(--flame);  --nav-tint: var(--flame-dim); }
 .nav-item[data-tab='salads']    { --nav-accent: var(--leaf);   --nav-tint: var(--leaf-dim); }

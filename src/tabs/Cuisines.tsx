@@ -6,6 +6,7 @@ import { useCollection } from '../lib/collection'
 import type { Profile } from '../lib/session'
 import { Icon } from '../components/Icon'
 import { EmptyState, Field, Sheet, useConfirm, useToast, SectionTitle } from '../components/ui'
+import { makeThumb, uploadMedia, removeMedia, mediaUrl, mediaKey, fileExt } from '../lib/media'
 
 /* -------------------------------------------------------------------------- */
 
@@ -16,6 +17,9 @@ type CuisineRow = {
   where_to_get: string | null
   notes: string | null
   decided_by: string | null
+  /** Original photo in storage + tiny data-URL thumb for instant lists. */
+  photo_path: string | null
+  photo_thumb: string | null
   updated_at?: string
 }
 
@@ -86,6 +90,8 @@ export function CuisinesTab({ me }: { me: Profile }) {
       where_to_get: null,
       notes: null,
       decided_by: me.slug,
+      photo_path: null,
+      photo_thumb: null,
     })
     await Promise.all(
       next.map((r, i) =>
@@ -172,15 +178,29 @@ export function CuisinesTab({ me }: { me: Profile }) {
       )}
 
       {view === 'ranked' && (
-        <RankedList ranked={ranked} onReorder={reorder} onRemove={async (c) => {
-          const ok = await confirm({
-            title: `Drop ${countryLabel(c)}?`,
-            body: 'It goes back into the wheel and loses its place.',
-            confirmLabel: 'Drop it',
-            danger: true,
-          })
-          if (ok) await backToPool(c)
-        }} />
+        <RankedList
+          ranked={ranked}
+          onReorder={reorder}
+          onRemove={async (c) => {
+            const ok = await confirm({
+              title: `Drop ${countryLabel(c)}?`,
+              body: 'It goes back into the wheel and loses its place.',
+              confirmLabel: 'Drop it',
+              danger: true,
+            })
+            if (ok) await backToPool(c)
+          }}
+          onSavePhoto={async (row, file) => {
+            const path = `cuisines/${mediaKey(row.country)}.${fileExt(file)}`
+            const thumb = await makeThumb(file)
+            await uploadMedia(path, file)
+            await upsert({ country: row.country, photo_path: path, photo_thumb: thumb })
+          }}
+          onRemovePhoto={async (row) => {
+            if (row.photo_path) void removeMedia(row.photo_path)
+            await upsert({ country: row.country, photo_path: null, photo_thumb: null })
+          }}
+        />
       )}
 
       {view === 'elsewhere' && (
@@ -549,11 +569,17 @@ function RankedList({
   ranked,
   onReorder,
   onRemove,
+  onSavePhoto,
+  onRemovePhoto,
 }: {
   ranked: CuisineRow[]
   onReorder: (from: number, to: number) => void
   onRemove: (country: string) => void
+  onSavePhoto: (row: CuisineRow, file: File) => Promise<void>
+  onRemovePhoto: (row: CuisineRow) => Promise<void>
 }) {
+  const [photoFor, setPhotoFor] = useState<CuisineRow | null>(null)
+
   if (!ranked.length) {
     return <EmptyState icon="🍽" title="Nothing ranked yet" hint="Spin the wheel, eat the thing, then place it." />
   }
@@ -565,6 +591,18 @@ function RankedList({
           <span className={`rank-medal display ${i < 3 ? `is-${i + 1}` : ''}`}>{i + 1}</span>
           <span className="rank-flag">{countryFlag(r.country)}</span>
           <span className="grow truncate rank-name">{countryLabel(r.country)}</span>
+          <button
+            className={`rank-photo ${r.photo_thumb ? 'has-photo' : ''}`}
+            onClick={() => setPhotoFor(r)}
+            aria-label={r.photo_thumb ? 'View photo' : 'Add photo'}
+            data-pressable
+          >
+            {r.photo_thumb ? (
+              <img src={r.photo_thumb} alt="" />
+            ) : (
+              <Icon name="camera" size={13} />
+            )}
+          </button>
           <div className="rank-tools">
             <button className="icon-btn" disabled={i === 0} onClick={() => onReorder(i, i - 1)} aria-label="Up" data-pressable>
               <Icon name="chevron" size={14} className="rot-up" />
@@ -578,7 +616,101 @@ function RankedList({
           </div>
         </div>
       ))}
+
+      <PhotoSheet
+        row={photoFor}
+        onClose={() => setPhotoFor(null)}
+        onSave={onSavePhoto}
+        onRemove={onRemovePhoto}
+      />
     </div>
+  )
+}
+
+/** One photo per eaten country — a keepsake, not a gallery. */
+function PhotoSheet({
+  row,
+  onClose,
+  onSave,
+  onRemove,
+}: {
+  row: CuisineRow | null
+  onClose: () => void
+  onSave: (row: CuisineRow, file: File) => Promise<void>
+  onRemove: (row: CuisineRow) => Promise<void>
+}) {
+  const toast = useToast()
+  const confirm = useConfirm()
+  const [busy, setBusy] = useState(false)
+  const [fullUrl, setFullUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    setFullUrl(null)
+    if (!row?.photo_path) return
+    let alive = true
+    void mediaUrl(row.photo_path).then((u) => alive && setFullUrl(u))
+    return () => {
+      alive = false
+    }
+  }, [row])
+
+  const pick = async (file: File) => {
+    if (!row) return
+    setBusy(true)
+    try {
+      await onSave(row, file)
+      toast('Photo saved', 'good')
+      onClose()
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Couldn't upload the photo", 'bad')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Sheet
+      open={!!row}
+      onClose={onClose}
+      title={row ? `${countryFlag(row.country)}  ${countryLabel(row.country)}` : ''}
+    >
+      {row?.photo_thumb && (
+        <div className="photo-frame">
+          <img src={fullUrl ?? row.photo_thumb} alt={`${countryLabel(row.country)} dinner`} />
+        </div>
+      )}
+
+      <label className={`btn btn-accent btn-block set-import ${busy ? 'is-busy' : ''}`} data-pressable>
+        <Icon name="camera" size={16} />
+        {busy ? 'Uploading…' : row?.photo_thumb ? 'Replace the photo' : 'Add a photo'}
+        <input
+          type="file"
+          accept="image/*"
+          hidden
+          disabled={busy}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) void pick(f)
+            e.target.value = ''
+          }}
+        />
+      </label>
+
+      {row?.photo_thumb && (
+        <button
+          className="btn btn-quiet btn-block btn-sm"
+          onClick={async () => {
+            const ok = await confirm({ title: 'Remove this photo?', confirmLabel: 'Remove', danger: true })
+            if (!ok || !row) return
+            await onRemove(row)
+            onClose()
+          }}
+          data-pressable
+        >
+          <Icon name="trash" size={14} /> Remove photo
+        </button>
+      )}
+    </Sheet>
   )
 }
 
@@ -610,7 +742,10 @@ function Elsewhere({
         <div key={r.country} className="card away-row">
           <div className="away-head">
             <span className="away-flag">{countryFlag(r.country)}</span>
-            <span className="grow away-name">{countryLabel(r.country)}</span>
+            <span className="grow away-name truncate">
+              {countryLabel(r.country)}
+              {r.where_to_get && <span className="away-lead"> — {r.where_to_get}</span>}
+            </span>
             <button className="icon-btn" onClick={() => setEditing(r)} aria-label="Edit" data-pressable>
               <Icon name="pencil" size={14} />
             </button>
@@ -618,12 +753,6 @@ function Elsewhere({
               <Icon name="undo" size={14} />
             </button>
           </div>
-          {r.where_to_get && (
-            <div className="away-where">
-              <Icon name="map" size={13} />
-              <span className="selectable">{r.where_to_get}</span>
-            </div>
-          )}
           {r.notes && <p className="away-notes selectable">{r.notes}</p>}
         </div>
       ))}
