@@ -16,6 +16,7 @@
     "@fontsource-variable/space-grotesk": "^5.3.0",
     "@fontsource/bodoni-moda": "^5.3.0",
     "@supabase/supabase-js": "^2.112.2",
+    "heic2any": "^0.0.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

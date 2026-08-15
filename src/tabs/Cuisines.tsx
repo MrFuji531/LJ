@@ -6,7 +6,7 @@ import { useCollection } from '../lib/collection'
 import type { Profile } from '../lib/session'
 import { Icon } from '../components/Icon'
 import { EmptyState, Field, Sheet, useConfirm, useToast, SectionTitle } from '../components/ui'
-import { makeThumb, uploadMedia, removeMedia, mediaUrl, mediaKey, fileExt } from '../lib/media'
+import { makeThumb, normalizePhoto, uploadMedia, removeMedia, mediaUrl, mediaKey } from '../lib/media'
 
 /* -------------------------------------------------------------------------- */
 
@@ -191,9 +191,12 @@ export function CuisinesTab({ me }: { me: Profile }) {
             if (ok) await backToPool(c)
           }}
           onSavePhoto={async (row, file) => {
-            const path = `cuisines/${mediaKey(row.country)}.${fileExt(file)}`
-            const thumb = await makeThumb(file)
-            await uploadMedia(path, file)
+            // HEIC from an iPhone becomes JPEG here, so Android can show it.
+            const { blob, ext } = await normalizePhoto(file)
+            const path = `cuisines/${mediaKey(row.country)}.${ext}`
+            const thumb = await makeThumb(blob)
+            await uploadMedia(path, blob)
+            if (row.photo_path && row.photo_path !== path) void removeMedia(row.photo_path)
             await upsert({ country: row.country, photo_path: path, photo_thumb: thumb })
           }}
           onRemovePhoto={async (row) => {
@@ -662,7 +665,7 @@ function PhotoSheet({
       toast('Photo saved', 'good')
       onClose()
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Couldn't upload the photo", 'bad')
+      toast(`Photo failed — ${e instanceof Error ? e.message : 'unknown error'}`, 'bad')
     } finally {
       setBusy(false)
     }
@@ -685,7 +688,7 @@ function PhotoSheet({
         {busy ? 'Uploading…' : row?.photo_thumb ? 'Replace the photo' : 'Add a photo'}
         <input
           type="file"
-          accept="image/*"
+          accept="image/*,.heic,.heif"
           hidden
           disabled={busy}
           onChange={(e) => {

@@ -14,6 +14,24 @@ const BUCKET = 'lj-media'
 
 export const canUpload = () => Boolean(sb()) && navigator.onLine
 
+const looksHeic = (f: Blob) => {
+  const name = f instanceof File ? f.name.toLowerCase() : ''
+  return /hei[cf]/.test(f.type) || /\.hei[cf]$/.test(name)
+}
+
+/**
+ * iPhone photos arrive as HEIC, which Android Chrome can't decode at all and
+ * older iOS can't decode in canvas — so both the thumbnail and the stored
+ * original must be JPEG. The converter is a ~1 MB lazy chunk, loaded only
+ * when a HEIC actually shows up.
+ */
+export async function normalizePhoto(file: File): Promise<{ blob: Blob; ext: string }> {
+  if (!looksHeic(file)) return { blob: file, ext: fileExt(file) }
+  const { default: heic2any } = await import('heic2any')
+  const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.86 })
+  return { blob: Array.isArray(out) ? out[0] : out, ext: 'jpg' }
+}
+
 /** Cover-cropped square thumbnail as a webp data URL — a few KB at most. */
 export async function makeThumb(file: Blob, size = 128): Promise<string> {
   const url = URL.createObjectURL(file)
@@ -21,7 +39,8 @@ export async function makeThumb(file: Blob, size = 128): Promise<string> {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const el = new Image()
       el.onload = () => resolve(el)
-      el.onerror = reject
+      el.onerror = () =>
+        reject(new Error("This phone can't read that image format"))
       el.src = url
     })
     const canvas = document.createElement('canvas')
