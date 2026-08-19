@@ -18,6 +18,7 @@ import { TodoTab } from './tabs/Todo'
 import { useSession, profileOf } from './lib/session'
 import { syncClock } from './lib/clock'
 import { flushOutbox } from './lib/collection'
+import { syncSharedKey } from './lib/tmdb'
 
 const LS_TAB = 'lj.tab'
 
@@ -42,6 +43,7 @@ export function App() {
     if (session.state.kind !== 'ready') return
     void syncClock()
     void flushOutbox()
+    void syncSharedKey()
   }, [session.state.kind])
 
   // Sheets and the FAB portal into <body>, outside the .app scope — the body

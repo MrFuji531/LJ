@@ -6,7 +6,7 @@ import { Icon } from './Icon'
 import { Logo } from './Logo'
 import { PROFILES, type Profile, type useSession } from '../lib/session'
 import { getConfig, setConfig, isConfigured } from '../lib/supabase'
-import { tmdbKey, setTmdbKey, hasTmdb, checkKey, hasBuiltInKey } from '../lib/tmdb'
+import { tmdbKey, setTmdbKey, hasTmdb, checkKey, hasBuiltInKey, shareKey } from '../lib/tmdb'
 import { pendingWrites, reloadAll, flushOutbox, collection } from '../lib/collection'
 import { isClockSynced, clockOffset, syncClock } from '../lib/clock'
 
@@ -163,7 +163,10 @@ export function Settings({
               return
             }
             setTmdbKey(k)
-            toast(k ? 'Key checked and saved' : 'Key cleared', 'good')
+            // A good key is shared through the database, so pasting it on
+            // one phone sets up both.
+            if (k) await shareKey(k)
+            toast(k ? 'Key checked, saved, and shared to both phones' : 'Key cleared', 'good')
           }}
           data-pressable
         >

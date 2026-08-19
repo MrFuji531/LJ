@@ -1,16 +1,45 @@
 /**
- * TMDb lookup. Optional — everything degrades to manual entry without a key.
- * Get one free at themoviedb.org → Settings → API. Paste it into LJ Settings.
+ * TMDb lookup. The key resolves from, in order:
+ *   1. a key pasted into Settings (validated before saving),
+ *   2. a build-time VITE_TMDB_KEY,
+ *   3. the shared key in lj_config — synced from the database on sign-in,
+ *      so neither phone ever needs any setup.
  */
 
+import { sb } from './supabase'
+
 const LS_TMDB = 'lj.tmdb.key'
+const LS_SHARED = 'lj.tmdb.shared'
 const BASE = 'https://api.themoviedb.org/3'
 
 export const IMG = (path: string | null | undefined, size: 'w185' | 'w342' | 'w780' = 'w342') =>
   path ? `https://image.tmdb.org/t/p/${size}${path}` : null
 
 export function tmdbKey() {
-  return localStorage.getItem(LS_TMDB) || import.meta.env.VITE_TMDB_KEY || ''
+  return (
+    localStorage.getItem(LS_TMDB) ||
+    import.meta.env.VITE_TMDB_KEY ||
+    localStorage.getItem(LS_SHARED) ||
+    ''
+  )
+}
+
+/** Pull the shared key out of the database once a session exists. */
+export async function syncSharedKey() {
+  const client = sb()
+  if (!client) return
+  try {
+    const { data } = await client.from('lj_config').select('value').eq('key', 'tmdb').maybeSingle()
+    if (data?.value) localStorage.setItem(LS_SHARED, data.value)
+  } catch {
+    /* offline — the next sign-in tries again */
+  }
+}
+
+/** Push a (validated) key into the database so the other phone gets it too. */
+export async function shareKey(key: string) {
+  localStorage.setItem(LS_SHARED, key)
+  await sb()?.from('lj_config').upsert({ key: 'tmdb', value: key })
 }
 
 export function setTmdbKey(k: string) {
@@ -42,17 +71,24 @@ function rawGet(path: string, params: Record<string, string>, key: string) {
 }
 
 async function get(path: string, params: Record<string, string> = {}) {
-  const res = await rawGet(path, params, tmdbKey())
+  const primary = tmdbKey()
+  const res = await rawGet(path, params, primary)
   if (res.ok) return res.json()
 
   // Self-heal: a mistyped key saved in Settings must not shadow a working
-  // built-in one. Drop it, retry once, carry on as if nothing happened.
-  const envKey = import.meta.env.VITE_TMDB_KEY as string | undefined
-  const saved = localStorage.getItem(LS_TMDB)
-  if ((res.status === 401 || res.status === 403) && saved && envKey && saved !== envKey) {
-    localStorage.removeItem(LS_TMDB)
-    const retry = await rawGet(path, params, envKey)
-    if (retry.ok) return retry.json()
+  // built-in or shared one. Try the fallbacks; drop the bad key on success.
+  if (res.status === 401 || res.status === 403) {
+    const fallbacks = [
+      import.meta.env.VITE_TMDB_KEY as string | undefined,
+      localStorage.getItem(LS_SHARED),
+    ].filter((k): k is string => Boolean(k) && k !== primary)
+    for (const k of fallbacks) {
+      const retry = await rawGet(path, params, k)
+      if (retry.ok) {
+        if (localStorage.getItem(LS_TMDB)) localStorage.removeItem(LS_TMDB)
+        return retry.json()
+      }
+    }
   }
   throw new Error(`TMDb ${res.status}`)
 }
