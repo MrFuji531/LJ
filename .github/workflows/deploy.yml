@@ -30,8 +30,12 @@ jobs:
 
       - run: npm run typecheck
 
-      # base must match the Pages subpath (/LJ/) or every asset 404s
+      # base must match the Pages subpath (/LJ/) or every asset 404s.
+      # The TMDb key is a repo secret so it stays out of the public repo;
+      # it is still baked into the client bundle, which is fine for TMDb.
       - run: npm run build:pages
+        env:
+          VITE_TMDB_KEY: ${{ secrets.VITE_TMDB_KEY }}
 
       - uses: actions/configure-pages@v5
 

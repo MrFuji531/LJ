@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import './Todo.css'
 
 import { useCollection } from '../lib/collection'
+import { logEvent, unlogEvent } from '../lib/events'
 import { profileOf, type Profile } from '../lib/session'
 import { Icon } from '../components/Icon'
 import { EmptyState, Field, Sheet, useConfirm, useToast } from '../components/ui'
@@ -70,7 +71,12 @@ export function TodoTab({ me }: { me: Profile }) {
 
   const toggle = async (r: TodoRow) => {
     await upsert({ ...r, done: !r.done, done_at: !r.done ? new Date().toISOString() : null })
-    if (!r.done) toast('Nice.', 'good')
+    if (!r.done) {
+      logEvent({ room: 'todo', kind: 'done', refId: r.id, label: r.text, by: me.slug })
+      toast('Nice.', 'good')
+    } else {
+      unlogEvent('todo', 'done', r.id)
+    }
   }
 
   const usedCategories = [...new Set(open.map((r) => r.category).filter(Boolean))] as string[]

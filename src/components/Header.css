@@ -154,6 +154,40 @@
   font-weight: 400;
 }
 
+/* ---------- the record (hat history) ---------- */
+
+.hat-log {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px 9px 9px;
+  text-align: left;
+  min-height: 0;
+  animation: rise 280ms var(--ease) both;
+  color: var(--text-3);
+}
+
+.hat-log-thumb {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--r-xs);
+  object-fit: cover;
+  border: 1px solid var(--line-loud);
+}
+
+.hat-log-thumb.is-empty {
+  display: grid;
+  place-items: center;
+  font-size: 19px;
+  background: var(--ink-inset);
+  border-style: dashed;
+}
+
+.hat-log-body { min-width: 0; }
+.hat-log-activity { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.hat-log-date { font-size: 11px; color: var(--text-4); margin-top: 2px; }
+
 .hat-pencil { color: var(--text-4); flex: none; align-self: center; }
 
 .hat-input {

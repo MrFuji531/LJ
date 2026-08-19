@@ -5,6 +5,7 @@ import './RateReveal.css'
 import type { TitleRow } from '../tabs/Titles'
 import { scoreKey, pendingKey } from '../tabs/Titles'
 import { collection } from '../lib/collection'
+import { logEvent } from '../lib/events'
 import { otherProfile, type Profile } from '../lib/session'
 import * as tmdb from '../lib/tmdb'
 import { RatingBar } from './ui'
@@ -241,14 +242,27 @@ async function onFinalise(
   me: Profile,
   them: Profile,
 ) {
+  const watchedOn = row.watched_on ?? new Date().toISOString().slice(0, 10)
   await collection<TitleRow>('lj_titles').upsert({
     id: row.id,
     [scoreKey(me.slug)]: final.mine,
     [scoreKey(them.slug)]: final.theirs,
     status: 'watched',
-    watched_on: row.watched_on ?? new Date().toISOString().slice(0, 10),
+    watched_on: watchedOn,
     new_season: false,
     pending_score_james: null,
     pending_score_lee: null,
   } as Partial<TitleRow>)
+  logEvent({
+    room: row.kind === 'movie' ? 'movies' : 'shows',
+    kind: 'watched',
+    refId: row.id,
+    label: row.title,
+    happenedOn: watchedOn,
+    meta: {
+      score_james: me.slug === 'james' ? final.mine : final.theirs,
+      score_lee: me.slug === 'lee' ? final.mine : final.theirs,
+    },
+    by: me.slug,
+  })
 }

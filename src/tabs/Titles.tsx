@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import './Titles.css'
 
 import { useCollection } from '../lib/collection'
+import { logEvent } from '../lib/events'
 import { otherProfile, profileOf, type Profile } from '../lib/session'
 import * as tmdb from '../lib/tmdb'
 import { Icon } from '../components/Icon'
@@ -437,6 +438,19 @@ export function TitlesTab({ kind, me }: { kind: 'movie' | 'tv'; me: Profile }) {
         onClose={() => setWatchedOpen(null)}
         onSave={async (patch) => {
           await upsert(patch)
+          // Editing the date re-logs the same event, so the ledger follows.
+          const t = watchedOpen
+          if (t && patch.watched_on) {
+            logEvent({
+              room: kind === 'movie' ? 'movies' : 'shows',
+              kind: 'watched',
+              refId: t.id,
+              label: t.title,
+              happenedOn: patch.watched_on,
+              meta: { score_james: t.score_james, score_lee: t.score_lee },
+              by: me.slug,
+            })
+          }
           setWatchedOpen(null)
           toast('Saved', 'good')
         }}

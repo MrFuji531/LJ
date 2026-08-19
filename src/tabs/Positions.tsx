@@ -3,6 +3,7 @@ import './Positions.css'
 
 import rawPositions from '../data/positions.json'
 import { useCollection } from '../lib/collection'
+import { logEvent } from '../lib/events'
 import type { Profile } from '../lib/session'
 import { Icon } from '../components/Icon'
 import { EmptyState, Sheet, useConfirm, useToast, SectionTitle } from '../components/ui'
@@ -145,6 +146,10 @@ export function PositionsTab({ me }: { me: Profile }) {
       status: 'completed',
       rating: pendingVerdict,
       rated_by: me.slug,
+    })
+    logEvent({
+      room: 'positions', kind: 'completed', refId: String(current.id),
+      label: current.name, meta: { rating: pendingVerdict }, by: me.slug,
     })
     const v = VERDICTS.find((x) => x.key === pendingVerdict)!
     toast(`${v.emoji}  ${current.name}`, pendingVerdict === 'dislike' ? 'default' : 'good')

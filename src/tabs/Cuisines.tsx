@@ -3,6 +3,7 @@ import './Cuisines.css'
 
 import { COUNTRIES, countryFlag, countryLabel } from '../data/countries'
 import { useCollection } from '../lib/collection'
+import { logEvent } from '../lib/events'
 import type { Profile } from '../lib/session'
 import { Icon } from '../components/Icon'
 import { EmptyState, Field, Sheet, useConfirm, useToast, SectionTitle } from '../components/ui'
@@ -98,6 +99,10 @@ export function CuisinesTab({ me }: { me: Profile }) {
         upsert({ ...r, status: 'ranked', rank: i + 1, decided_by: r.decided_by ?? me.slug }),
       ),
     )
+    logEvent({
+      room: 'cuisines', kind: 'ranked', refId: country,
+      label: countryLabel(country), meta: { rank: slot + 1 }, by: me.slug,
+    })
     toast(`${countryFlag(country)}  ${countryLabel(country)} — #${slot + 1}`, 'good')
     setView('ranked')
   }

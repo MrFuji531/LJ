@@ -109,6 +109,35 @@
 
 .mcu-tick.is-on svg { animation: pop 320ms var(--ease) both; }
 
+/* Five segments need a little more room than four. */
+.seg-scroll { overflow-x: auto; scrollbar-width: none; }
+.seg-scroll::-webkit-scrollbar { display: none; }
+.seg-scroll .seg-btn { flex: 1 0 auto; padding: 0 13px; }
+
+/* ---------- our film/show ranking ---------- */
+
+.mcu-tray {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  animation: rise 280ms var(--ease) both;
+}
+
+.mcu-tray.is-dim { opacity: 0.6; }
+
+.mcu-excluded-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-align: left;
+}
+
 /* ---------- avatars ---------- */
 
 .avatar {

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './Mcu.css'
 
-import { MCU_FILMS, MCU_BY_SLUG, PHASES, CHARACTER_KINDS, type CharacterKind } from '../data/mcu'
+import { MCU_FILMS, MCU_BY_SLUG, PHASES, CHARACTER_KINDS, type CharacterKind, type McuEntry } from '../data/mcu'
 import { useCollection } from '../lib/collection'
+import { logEvent, unlogEvent } from '../lib/events'
+import { makeThumb, normalizePhoto, uploadMedia, removeMedia } from '../lib/media'
 import type { Profile } from '../lib/session'
 import * as tmdb from '../lib/tmdb'
 import { Icon } from '../components/Icon'
@@ -21,6 +23,10 @@ type FilmRow = {
   watched: boolean
   watched_on: string | null
   poster_path: string | null
+  /** Our joint placement of watched entries — 1 is best. */
+  rank: number | null
+  /** True for things we only YouTube-summarised and won't rank. */
+  rank_excluded: boolean | null
   score_james: number | null
   score_lee: number | null
   notes_james: string | null
@@ -34,6 +40,9 @@ type CharRow = {
   kind: CharacterKind
   actor: string | null
   image_url: string | null
+  /** Uploaded portrait: original in storage + tiny data-URL for lists. */
+  image_path: string | null
+  image_thumb: string | null
   film_slug: string | null
   /** Lee's placement — 1 is best. */
   rank: number | null
@@ -63,7 +72,7 @@ const byRank = (a: CharRow, b: CharRow) => {
 
 /* ========================================================================== */
 
-type View = 'films' | CharacterKind
+type View = 'films' | 'ranked' | CharacterKind
 
 export function McuTab({ me }: { me: Profile }) {
   const films = useCollection<FilmRow>('lj_mcu_films', 'slug')
@@ -89,11 +98,22 @@ export function McuTab({ me }: { me: Profile }) {
   const toggle = async (slug: string) => {
     const row = filmBySlug.get(slug)
     const watched = !(row?.watched ?? false)
+    const entry = MCU_BY_SLUG.get(slug)
     await films.upsert({
       slug,
       watched,
       watched_on: watched ? new Date().toISOString().slice(0, 10) : null,
+      // Untick pulls it back out of the rankings too.
+      ...(watched ? {} : { rank: null, rank_excluded: false }),
     })
+    if (watched) {
+      logEvent({
+        room: 'mcu', kind: 'watched', refId: slug,
+        label: entry?.title ?? slug, meta: { kind: entry?.kind }, by: me.slug,
+      })
+    } else {
+      unlogEvent('mcu', 'watched', slug)
+    }
   }
 
   const scrollToNext = () => {
@@ -137,11 +157,13 @@ export function McuTab({ me }: { me: Profile }) {
     const existing = char.id ? chars.rows.find((c) => c.id === char.id) : null
     const list = rankedOf(char.kind).filter((c) => c.id !== char.id)
     const row: CharRow = {
-      id: existing?.id ?? uid(),
+      id: char.id ?? existing?.id ?? uid(),
       name: char.name ?? existing?.name ?? '?',
       kind: char.kind,
       actor: char.actor ?? existing?.actor ?? null,
       image_url: char.image_url ?? existing?.image_url ?? null,
+      image_path: char.image_path ?? existing?.image_path ?? null,
+      image_thumb: char.image_thumb ?? existing?.image_thumb ?? null,
       film_slug: existing?.film_slug ?? null,
       rank: 0,
       score_james: existing?.score_james ?? null,
@@ -188,10 +210,11 @@ export function McuTab({ me }: { me: Profile }) {
         )}
       </div>
 
-      <div className="seg">
+      <div className="seg seg-scroll">
         {(
           [
             ['films', 'The list'],
+            ['ranked', 'Ranked'],
             ['hero', 'Heroes'],
             ['villain', 'Villains'],
             ['love', 'Loves'],
@@ -207,6 +230,34 @@ export function McuTab({ me }: { me: Profile }) {
           </button>
         ))}
       </div>
+
+      {view === 'ranked' && (
+        <FilmRankBoard
+          filmBySlug={filmBySlug}
+          onPlace={async (slug, slot) => {
+            const ranked = MCU_FILMS
+              .map((f) => ({ f, r: filmBySlug.get(f.slug) }))
+              .filter((x) => x.r?.watched && x.r.rank != null && x.f.slug !== slug)
+              .sort((a, b) => a.r!.rank! - b.r!.rank!)
+              .map((x) => x.f.slug)
+            ranked.splice(slot, 0, slug)
+            await Promise.all(
+              ranked.map((s, i) => films.upsert({ slug: s, rank: i + 1, rank_excluded: false })),
+            )
+            toast(`${MCU_BY_SLUG.get(slug)?.title} — #${slot + 1}`, 'good')
+          }}
+          onReorder={async (ordered, from, to) => {
+            if (to < 0 || to >= ordered.length) return
+            const next = [...ordered]
+            const [moved] = next.splice(from, 1)
+            next.splice(to, 0, moved)
+            await Promise.all(next.map((s, i) => films.upsert({ slug: s, rank: i + 1 })))
+          }}
+          onExclude={(slug) => films.upsert({ slug, rank: null, rank_excluded: true })}
+          onRestore={(slug) => films.upsert({ slug, rank_excluded: false })}
+          onDrop={(slug) => films.upsert({ slug, rank: null, rank_excluded: false })}
+        />
+      )}
 
       {view === 'films' ? (
         <div className="stack" ref={listRef}>
@@ -259,7 +310,7 @@ export function McuTab({ me }: { me: Profile }) {
             {fetching ? 'Fetching posters…' : 'Fetch posters from TMDb'}
           </button>
         </div>
-      ) : (
+      ) : view !== 'ranked' ? (
         <RankBoard
           kind={view}
           rows={rankedOf(view)}
@@ -268,7 +319,7 @@ export function McuTab({ me }: { me: Profile }) {
           onAdd={() => setNewCharKind(view)}
           onReorder={(from, to) => reorderChar(view, from, to)}
         />
-      )}
+      ) : null}
 
       {(openChar || newCharKind) && (
         <CharacterSheet
@@ -318,7 +369,9 @@ export function McuTab({ me }: { me: Profile }) {
 function Avatar({ row, size = 44 }: { row: CharRow; size?: number }) {
   const [broken, setBroken] = useState(false)
   const kind = CHARACTER_KINDS.find((k) => k.key === row.kind)!
-  const show = row.image_url && !broken
+  // Uploaded thumb first (instant, offline), then any legacy pasted link.
+  const src = row.image_thumb || row.image_url
+  const show = src && !broken
 
   return (
     <span
@@ -326,7 +379,7 @@ function Avatar({ row, size = 44 }: { row: CharRow; size?: number }) {
       style={{ width: size, height: size, ['--who' as string]: kind.color }}
     >
       {show ? (
-        <img src={row.image_url!} alt="" loading="lazy" onError={() => setBroken(true)} />
+        <img src={src!} alt="" loading="lazy" onError={() => setBroken(true)} />
       ) : (
         <span className="avatar-initials display" style={{ fontSize: size * 0.36 }}>
           {initials(row.name)}
@@ -431,6 +484,176 @@ function RankBoard({
 }
 
 /* ==========================================================================
+   The film & show rankings — ours, built as we tick things off
+   ========================================================================== */
+
+function FilmRankBoard({
+  filmBySlug,
+  onPlace,
+  onReorder,
+  onExclude,
+  onRestore,
+  onDrop,
+}: {
+  filmBySlug: Map<string, FilmRow>
+  onPlace: (slug: string, slot: number) => Promise<void>
+  onReorder: (ordered: string[], from: number, to: number) => void
+  onExclude: (slug: string) => void
+  onRestore: (slug: string) => void
+  onDrop: (slug: string) => void
+}) {
+  const confirm = useConfirm()
+  const [placing, setPlacing] = useState<McuEntry | null>(null)
+  const [showExcluded, setShowExcluded] = useState(false)
+
+  const watched = MCU_FILMS.filter((f) => filmBySlug.get(f.slug)?.watched)
+  const ranked = watched
+    .filter((f) => filmBySlug.get(f.slug)!.rank != null)
+    .sort((a, b) => filmBySlug.get(a.slug)!.rank! - filmBySlug.get(b.slug)!.rank!)
+  const tray = watched.filter((f) => {
+    const r = filmBySlug.get(f.slug)!
+    return r.rank == null && !r.rank_excluded
+  })
+  const excluded = watched.filter((f) => filmBySlug.get(f.slug)!.rank_excluded)
+  const orderedSlugs = ranked.map((f) => f.slug)
+
+  if (!watched.length) {
+    return (
+      <EmptyState
+        icon="🏆"
+        title="Nothing to rank yet"
+        hint="Tick things off in The list and they queue up here for the two of you to place."
+      />
+    )
+  }
+
+  return (
+    <div className="stack">
+      {tray.length > 0 && (
+        <>
+          <SectionTitle right={<span className="eyebrow">{tray.length} waiting</span>}>
+            To place
+          </SectionTitle>
+          {tray.map((f) => (
+            <div key={f.slug} className="mcu-tray card">
+              <div className="grow mcu-film-body">
+                <div className="mcu-film-title">{f.title}</div>
+                <div className="mcu-film-meta">
+                  <span className="num">{f.year}</span>
+                  {f.kind === 'show' && <span className="chip mcu-chip-show">Series</span>}
+                </div>
+              </div>
+              <button className="btn btn-accent btn-sm" onClick={() => setPlacing(f)} data-pressable>
+                Rank it
+              </button>
+              <button className="btn btn-quiet btn-sm" onClick={() => onExclude(f.slug)} data-pressable>
+                Skip
+              </button>
+            </div>
+          ))}
+        </>
+      )}
+
+      {ranked.length > 0 && (
+        <>
+          <SectionTitle right={<span className="eyebrow">{ranked.length} placed</span>}>
+            Our ranking
+          </SectionTitle>
+          {ranked.map((f, i) => (
+            <div key={f.slug} className="mcu-char card">
+              <span className={`mcu-char-rank display ${i < 3 ? `is-${i + 1}` : ''}`}>{i + 1}</span>
+              <div className="grow mcu-char-body">
+                <div className="mcu-char-name">{f.title}</div>
+                <div className="mcu-char-meta">
+                  <span className="num">{f.year}</span>
+                  {f.kind === 'show' && <span className="chip mcu-chip-show">Series</span>}
+                </div>
+              </div>
+              <div className="rank-tools">
+                <button className="icon-btn" disabled={i === 0} onClick={() => onReorder(orderedSlugs, i, i - 1)} aria-label="Up" data-pressable>
+                  <Icon name="chevron" size={14} className="rot-up" />
+                </button>
+                <button className="icon-btn" disabled={i === ranked.length - 1} onClick={() => onReorder(orderedSlugs, i, i + 1)} aria-label="Down" data-pressable>
+                  <Icon name="chevron" size={14} className="rot-down" />
+                </button>
+                <button
+                  className="icon-btn is-danger"
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: `Unrank ${f.title}?`,
+                      body: 'It goes back to the waiting pile.',
+                      confirmLabel: 'Unrank',
+                    })
+                    if (ok) onDrop(f.slug)
+                  }}
+                  aria-label="Remove from ranking"
+                  data-pressable
+                >
+                  <Icon name="x" size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      {excluded.length > 0 && (
+        <>
+          <button className="mcu-excluded-toggle" onClick={() => setShowExcluded((v) => !v)} data-pressable>
+            <Icon name="chevron" size={13} className={showExcluded ? 'rot-down' : ''} />
+            Not ranking · {excluded.length}
+          </button>
+          {showExcluded &&
+            excluded.map((f) => (
+              <div key={f.slug} className="mcu-tray card is-dim">
+                <div className="grow mcu-film-body">
+                  <div className="mcu-film-title">{f.title}</div>
+                  <div className="mcu-film-meta num">{f.year}</div>
+                </div>
+                <button className="btn btn-outline btn-sm" onClick={() => onRestore(f.slug)} data-pressable>
+                  <Icon name="undo" size={13} /> Rank it after all
+                </button>
+              </div>
+            ))}
+        </>
+      )}
+
+      <Sheet
+        open={!!placing}
+        onClose={() => setPlacing(null)}
+        title={placing ? `Where does ${placing.title} sit?` : ''}
+      >
+        <p className="muted place-hint">Tap the gap it belongs in — best at the top.</p>
+        <div className="place-list">
+          <PlaceSlot
+            label={ranked.length ? 'Top of the pile' : 'First one in'}
+            onClick={async () => {
+              await onPlace(placing!.slug, 0)
+              setPlacing(null)
+            }}
+          />
+          {ranked.map((f, i) => (
+            <div key={f.slug}>
+              <div className="place-entry">
+                <span className="place-rank num">{i + 1}</span>
+                <span className="grow truncate">{f.title}</span>
+              </div>
+              <PlaceSlot
+                label={i === ranked.length - 1 ? 'Bottom of the pile' : 'Here'}
+                onClick={async () => {
+                  await onPlace(placing!.slug, i + 1)
+                  setPlacing(null)
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      </Sheet>
+    </div>
+  )
+}
+
+/* ==========================================================================
    Add / edit a character
    ========================================================================== */
 
@@ -451,31 +674,55 @@ function CharacterSheet({
   onSaveDetails: (patch: Partial<CharRow>) => void
   onDelete?: () => void
 }) {
+  const toast = useToast()
   const meta = CHARACTER_KINDS.find((k) => k.key === kind)!
   const [name, setName] = useState('')
   const [actor, setActor] = useState('')
-  const [image, setImage] = useState('')
   const [placing, setPlacing] = useState(false)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  // The sheet owns the id so a photo can upload before the row exists.
+  const [charId, setCharId] = useState(() => uid())
+  const [photo, setPhoto] = useState<{ path: string; thumb: string } | null>(null)
 
   useEffect(() => {
     setName(row?.name ?? '')
     setActor(row?.actor ?? '')
-    setImage(row?.image_url ?? '')
+    setCharId(row?.id ?? uid())
+    setPhoto(row?.image_path && row.image_thumb ? { path: row.image_path, thumb: row.image_thumb } : null)
     setPlacing(!row) // adding goes straight to placement once named
   }, [row])
 
+  const pickPhoto = async (file: File) => {
+    setPhotoBusy(true)
+    try {
+      const { blob, ext } = await normalizePhoto(file)
+      const path = `mcu/${charId}.${ext}`
+      const thumb = await makeThumb(blob, 256)
+      await uploadMedia(path, blob)
+      if (photo && photo.path !== path) void removeMedia(photo.path)
+      setPhoto({ path, thumb })
+    } catch (e) {
+      toast(`Photo failed — ${e instanceof Error ? e.message : 'unknown error'}`, 'bad')
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
+
   const preview: CharRow = {
-    id: 'preview', name: name || '?', kind, actor: null, image_url: image || null,
+    id: 'preview', name: name || '?', kind, actor: null,
+    image_url: row?.image_url ?? null,
+    image_path: photo?.path ?? null, image_thumb: photo?.thumb ?? null,
     film_slug: null, rank: null, score_james: null, score_lee: null,
     notes_james: null, notes_lee: null, added_by: null,
   }
 
   const draft = {
-    id: row?.id,
+    id: charId,
     kind,
     name: name.trim(),
     actor: actor.trim() || null,
-    image_url: image.trim() || null,
+    image_path: photo?.path ?? null,
+    image_thumb: photo?.thumb ?? null,
   }
 
   const others = ranked.filter((c) => c.id !== row?.id)
@@ -500,7 +747,12 @@ function CharacterSheet({
               className="btn btn-accent"
               disabled={!name.trim()}
               onClick={() =>
-                onSaveDetails({ name: name.trim(), actor: actor.trim() || null, image_url: image.trim() || null })
+                onSaveDetails({
+                  name: name.trim(),
+                  actor: actor.trim() || null,
+                  image_path: photo?.path ?? null,
+                  image_thumb: photo?.thumb ?? null,
+                })
               }
               data-pressable
             >
@@ -522,9 +774,21 @@ function CharacterSheet({
         </div>
       </div>
 
-      <Field label="Picture" hint="Optional — paste an image link.">
-        <input value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://…" inputMode="url" spellCheck={false} />
-      </Field>
+      <label className="btn btn-quiet btn-block btn-sm set-import" data-pressable>
+        <Icon name="camera" size={14} />
+        {photoBusy ? 'Working…' : photo || row?.image_url ? 'Replace the photo' : 'Add a photo'}
+        <input
+          type="file"
+          accept="image/*,.heic,.heif"
+          hidden
+          disabled={photoBusy}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) void pickPhoto(f)
+            e.target.value = ''
+          }}
+        />
+      </label>
 
       {placing && (
         <>

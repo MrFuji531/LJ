@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import './Venues.css'
 
 import { useCollection } from '../lib/collection'
+import { logEvent } from '../lib/events'
 import { otherProfile, type Profile } from '../lib/session'
 import { Icon } from '../components/Icon'
 import {
@@ -273,11 +274,21 @@ export function VenuesTab({ kind, me }: { kind: 'nachos' | 'salad'; me: Profile 
         onClose={() => { setAdding(false); setEditing(null) }}
         onSave={async (patch) => {
           const isNew = !editing
+          const id = isNew ? uid() : editing!.id
           await upsert(
             isNew
-              ? ({ ...patch, id: uid(), kind, added_by: me.slug, created_at: new Date().toISOString() } as VenueRow)
-              : ({ ...patch, id: editing!.id } as VenueRow),
+              ? ({ ...patch, id, kind, added_by: me.slug, created_at: new Date().toISOString() } as VenueRow)
+              : ({ ...patch, id } as VenueRow),
           )
+          if (patch.visited) {
+            logEvent({
+              room: kind, kind: 'visited', refId: id,
+              label: patch.name ?? editing?.name ?? '?',
+              happenedOn: patch.visited_on ?? null,
+              meta: { score_james: patch.score_james ?? null, score_lee: patch.score_lee ?? null },
+              by: me.slug,
+            })
+          }
           setAdding(false)
           setEditing(null)
           toast(isNew ? 'Added' : 'Saved', 'good')
