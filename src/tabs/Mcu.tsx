@@ -681,7 +681,7 @@ function CharacterSheet({
   const [placing, setPlacing] = useState(false)
   const [photoBusy, setPhotoBusy] = useState(false)
   // The sheet owns the id so a photo can upload before the row exists.
-  const [charId, setCharId] = useState(() => uid())
+  const [charId, setCharId] = useState<string>(() => uid())
   const [photo, setPhoto] = useState<{ path: string; thumb: string } | null>(null)
 
   useEffect(() => {
