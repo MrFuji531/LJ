@@ -6,7 +6,7 @@ import { Icon } from './Icon'
 import { Logo } from './Logo'
 import { PROFILES, type Profile, type useSession } from '../lib/session'
 import { getConfig, setConfig, isConfigured } from '../lib/supabase'
-import { tmdbKey, setTmdbKey, hasTmdb } from '../lib/tmdb'
+import { tmdbKey, setTmdbKey, hasTmdb, checkKey, hasBuiltInKey } from '../lib/tmdb'
 import { pendingWrites, reloadAll, flushOutbox, collection } from '../lib/collection'
 import { isClockSynced, clockOffset, syncClock } from '../lib/clock'
 
@@ -142,15 +142,28 @@ export function Settings({
         <span className="eyebrow">Film & TV metadata</span>
         <Field
           label="TMDb API key"
-          hint={hasTmdb() ? 'Posters, genres and cast fill in automatically.' : 'Free at themoviedb.org → Settings → API. Without it, entry is manual.'}
+          hint={
+            hasBuiltInKey()
+              ? 'A key is built into the app — leave this empty unless you want to override it.'
+              : hasTmdb()
+                ? 'Posters, genres and cast fill in automatically.'
+                : 'Free at themoviedb.org → Settings → API. Without it, entry is manual.'
+          }
         >
           <input value={tk} onChange={(e) => setTk(e.target.value)} placeholder="Paste key" autoComplete="off" spellCheck={false} />
         </Field>
         <button
           className="btn btn-quiet btn-block btn-sm"
-          onClick={() => {
-            setTmdbKey(tk)
-            toast(tk.trim() ? 'Key saved' : 'Key cleared', 'good')
+          onClick={async () => {
+            const k = tk.trim()
+            // Never save a key TMDb itself rejects — a bad one here used to
+            // shadow the working built-in key and break search.
+            if (k && !(await checkKey(k))) {
+              toast("TMDb rejected that key — check for typos", 'bad')
+              return
+            }
+            setTmdbKey(k)
+            toast(k ? 'Key checked and saved' : 'Key cleared', 'good')
           }}
           data-pressable
         >

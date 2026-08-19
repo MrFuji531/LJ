@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import './Mcu.css'
 
-import { MCU_FILMS, MCU_BY_SLUG, PHASES, CHARACTER_KINDS, type CharacterKind, type McuEntry } from '../data/mcu'
+import { MCU_FILMS, MCU_BY_SLUG, PHASES, CHARACTER_KINDS, DOOMSDAY, type CharacterKind, type McuEntry } from '../data/mcu'
 import { useCollection } from '../lib/collection'
 import { logEvent, unlogEvent } from '../lib/events'
 import { makeThumb, normalizePhoto, uploadMedia, removeMedia } from '../lib/media'
@@ -98,7 +98,9 @@ export function McuTab({ me }: { me: Profile }) {
   const toggle = async (slug: string) => {
     const row = filmBySlug.get(slug)
     const watched = !(row?.watched ?? false)
-    const entry = MCU_BY_SLUG.get(slug)
+    const entry =
+      MCU_BY_SLUG.get(slug) ??
+      (slug === DOOMSDAY.slug ? { title: DOOMSDAY.title, kind: DOOMSDAY.kind } : undefined)
     await films.upsert({
       slug,
       watched,
@@ -134,7 +136,9 @@ export function McuTab({ me }: { me: Profile }) {
     for (const f of MCU_FILMS) {
       if (filmBySlug.get(f.slug)?.poster_path) continue
       try {
-        const hits = await tmdb.search(f.title, f.kind === 'show' ? 'tv' : 'movie')
+        // "Loki — Season 2" searches as "Loki"; the show poster is the poster.
+        const q = f.title.replace(/\s+—\s+Season\s+\d+$/u, '')
+        const hits = await tmdb.search(q, f.kind === 'show' ? 'tv' : 'movie')
         const hit = hits.find((h) => h.year === f.year) ?? hits[0]
         if (hit?.poster_path) {
           await films.upsert({ slug: f.slug, poster_path: hit.poster_path })
@@ -309,6 +313,11 @@ export function McuTab({ me }: { me: Profile }) {
             <Icon name="cloud" size={14} />
             {fetching ? 'Fetching posters…' : 'Fetch posters from TMDb'}
           </button>
+
+          <FinaleCard
+            watched={filmBySlug.get(DOOMSDAY.slug)?.watched ?? false}
+            onToggle={() => toggle(DOOMSDAY.slug)}
+          />
         </div>
       ) : view !== 'ranked' ? (
         <RankBoard
@@ -480,6 +489,25 @@ function RankBoard({
         {exporting ? 'Building…' : "Export Lee's rankings as an image"}
       </button>
     </div>
+  )
+}
+
+/** The endcap: where all of it has been heading. */
+function FinaleCard({ watched, onToggle }: { watched: boolean; onToggle: () => void }) {
+  return (
+    <button
+      className={`mcu-finale card ${watched ? 'is-watched' : ''}`}
+      onClick={onToggle}
+      data-pressable
+      data-press-scale="subtle"
+    >
+      <span className="eyebrow mcu-finale-eyebrow">The final stage</span>
+      <span className="mcu-finale-title display">{DOOMSDAY.title}</span>
+      <span className="mcu-finale-sub">{DOOMSDAY.release} — it all ends here</span>
+      <span className={`mcu-tick mcu-finale-tick ${watched ? 'is-on' : ''}`}>
+        {watched && <Icon name="check" size={14} strokeWidth={2.6} />}
+      </span>
+    </button>
   )
 }
 

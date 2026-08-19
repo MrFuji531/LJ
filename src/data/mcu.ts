@@ -38,33 +38,43 @@ const RAW: [title: string, year: number, phase: number, kind: McuKind][] = [
   ['Thor: The Dark World', 2013, 2, 'film'],
   ['Captain America: The Winter Soldier', 2014, 2, 'film'],
   ['Guardians of the Galaxy', 2014, 2, 'film'],
+  ['Agents of S.H.I.E.L.D. — Season 2', 2014, 2, 'show'],
   ['Agent Carter', 2015, 2, 'show'],
   ['Daredevil', 2015, 2, 'show'],
   ['Avengers: Age of Ultron', 2015, 2, 'film'],
   ['Ant-Man', 2015, 2, 'film'],
+  ['Agents of S.H.I.E.L.D. — Season 3', 2015, 2, 'show'],
   ['Jessica Jones', 2015, 2, 'show'],
 
+  ['Agent Carter — Season 2', 2016, 3, 'show'],
   ['Deadpool', 2016, 3, 'film'],
+  ['Daredevil — Season 2', 2016, 3, 'show'],
   ['Captain America: Civil War', 2016, 3, 'film'],
+  ['Agents of S.H.I.E.L.D. — Season 4', 2016, 3, 'show'],
   ['Luke Cage', 2016, 3, 'show'],
   ['Doctor Strange', 2016, 3, 'film'],
   ['Iron Fist', 2017, 3, 'show'],
   ['Guardians of the Galaxy Vol. 2', 2017, 3, 'film'],
   ['Spider-Man: Homecoming', 2017, 3, 'film'],
   ['The Defenders', 2017, 3, 'show'],
-  ['Inhumans', 2017, 3, 'show'],
   ['Thor: Ragnarok', 2017, 3, 'film'],
   ['The Punisher', 2017, 3, 'show'],
-  ['Runaways', 2017, 3, 'show'],
+  ['Agents of S.H.I.E.L.D. — Season 5', 2017, 3, 'show'],
   ['Black Panther', 2018, 3, 'film'],
+  ['Jessica Jones — Season 2', 2018, 3, 'show'],
   ['Avengers: Infinity War', 2018, 3, 'film'],
   ['Deadpool 2', 2018, 3, 'film'],
-  ['Cloak & Dagger', 2018, 3, 'show'],
+  ['Luke Cage — Season 2', 2018, 3, 'show'],
   ['Ant-Man and the Wasp', 2018, 3, 'film'],
+  ['Iron Fist — Season 2', 2018, 3, 'show'],
+  ['Daredevil — Season 3', 2018, 3, 'show'],
+  ['The Punisher — Season 2', 2019, 3, 'show'],
   ['Captain Marvel', 2019, 3, 'film'],
   ['Avengers: Endgame', 2019, 3, 'film'],
+  ['Agents of S.H.I.E.L.D. — Season 6', 2019, 3, 'show'],
+  ['Jessica Jones — Season 3', 2019, 3, 'show'],
   ['Spider-Man: Far From Home', 2019, 3, 'film'],
-  ['Helstrom', 2020, 3, 'show'],
+  ['Agents of S.H.I.E.L.D. — Season 7', 2020, 3, 'show'],
 
   ['WandaVision', 2021, 4, 'show'],
   ['The Falcon and the Winter Soldier', 2021, 4, 'show'],
@@ -87,10 +97,13 @@ const RAW: [title: string, year: number, phase: number, kind: McuKind][] = [
   ['Ant-Man and the Wasp: Quantumania', 2023, 5, 'film'],
   ['Guardians of the Galaxy Vol. 3', 2023, 5, 'film'],
   ['Secret Invasion', 2023, 5, 'show'],
+  ['Loki — Season 2', 2023, 5, 'show'],
   ['The Marvels', 2023, 5, 'film'],
+  ['What If…? — Season 2', 2023, 5, 'show'],
   ['Echo', 2024, 5, 'show'],
   ['Deadpool & Wolverine', 2024, 5, 'film'],
   ['Agatha All Along', 2024, 5, 'show'],
+  ['What If…? — Season 3', 2024, 5, 'show'],
   ['Captain America: Brave New World', 2025, 5, 'film'],
   ['Daredevil: Born Again', 2025, 5, 'show'],
   ['Thunderbolts*', 2025, 5, 'film'],
@@ -99,8 +112,20 @@ const RAW: [title: string, year: number, phase: number, kind: McuKind][] = [
   ['The Fantastic Four: First Steps', 2025, 6, 'film'],
   ['Eyes of Wakanda', 2025, 6, 'show'],
   ['Wonder Man', 2026, 6, 'show'],
+  ['Daredevil: Born Again — Season 2', 2026, 6, 'show'],
   ['Spider-Man: Brand New Day', 2026, 6, 'film'],
 ]
+
+/**
+ * The endcap. Not in the checklist proper until it's actually out —
+ * it gets its own card at the bottom: big, green, the final stage.
+ */
+export const DOOMSDAY = {
+  slug: 'avengers-doomsday-2026',
+  title: 'Avengers: Doomsday',
+  kind: 'film' as McuKind,
+  release: 'December 2026',
+}
 
 const slugify = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')

@@ -32,21 +32,42 @@ export type TmdbHit = {
 }
 
 /** The key may be a v3 key (query param) or a v4 bearer token. Support both. */
-function authFor(url: URL) {
-  const key = tmdbKey()
-  if (key.startsWith('eyJ')) return { headers: { Authorization: `Bearer ${key}` } }
-  url.searchParams.set('api_key', key)
-  return { headers: {} as Record<string, string> }
+function rawGet(path: string, params: Record<string, string>, key: string) {
+  const url = new URL(BASE + path)
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v)
+  const headers: Record<string, string> = {}
+  if (key.startsWith('eyJ')) headers.Authorization = `Bearer ${key}`
+  else url.searchParams.set('api_key', key)
+  return fetch(url.toString(), { headers })
 }
 
 async function get(path: string, params: Record<string, string> = {}) {
-  const url = new URL(BASE + path)
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v)
-  const { headers } = authFor(url)
-  const res = await fetch(url.toString(), { headers })
-  if (!res.ok) throw new Error(`TMDb ${res.status}`)
-  return res.json()
+  const res = await rawGet(path, params, tmdbKey())
+  if (res.ok) return res.json()
+
+  // Self-heal: a mistyped key saved in Settings must not shadow a working
+  // built-in one. Drop it, retry once, carry on as if nothing happened.
+  const envKey = import.meta.env.VITE_TMDB_KEY as string | undefined
+  const saved = localStorage.getItem(LS_TMDB)
+  if ((res.status === 401 || res.status === 403) && saved && envKey && saved !== envKey) {
+    localStorage.removeItem(LS_TMDB)
+    const retry = await rawGet(path, params, envKey)
+    if (retry.ok) return retry.json()
+  }
+  throw new Error(`TMDb ${res.status}`)
 }
+
+/** Does this key actually work? Used by Settings before saving one. */
+export async function checkKey(key: string): Promise<boolean> {
+  try {
+    const res = await rawGet('/configuration', {}, key.trim())
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+export const hasBuiltInKey = () => Boolean(import.meta.env.VITE_TMDB_KEY)
 
 export async function search(query: string, kind: 'movie' | 'tv'): Promise<TmdbHit[]> {
   if (!query.trim() || !hasTmdb()) return []

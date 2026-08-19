@@ -114,6 +114,39 @@
 .seg-scroll::-webkit-scrollbar { display: none; }
 .seg-scroll .seg-btn { flex: 1 0 auto; padding: 0 13px; }
 
+/* ---------- the final stage ---------- */
+
+.mcu-finale {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 26px 18px 22px;
+  margin-top: 10px;
+  text-align: center;
+  border: 1px solid var(--jade);
+  background:
+    radial-gradient(140% 120% at 50% 0%, var(--jade-dim), transparent 60%),
+    var(--ink-card);
+  box-shadow: 0 0 34px -10px var(--jade);
+}
+
+.mcu-finale-eyebrow { color: var(--jade); letter-spacing: 0.22em; }
+
+.mcu-finale-title {
+  font-size: clamp(26px, 7vw, 34px);
+  line-height: 1.05;
+  color: var(--jade);
+  text-shadow: 0 0 28px color-mix(in srgb, var(--jade) 45%, transparent);
+}
+
+.mcu-finale-sub { font-size: 12.5px; color: var(--text-2); }
+
+.mcu-finale-tick { margin-top: 8px; border-color: var(--jade); }
+.mcu-finale-tick.is-on { background: var(--jade); border-color: var(--jade); }
+
+.mcu-finale.is-watched { opacity: 1; }
+
 /* ---------- our film/show ranking ---------- */
 
 .mcu-tray {
