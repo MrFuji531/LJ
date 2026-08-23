@@ -1,17 +1,21 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import './Venues.css'
 
 import { useCollection } from '../lib/collection'
-import { logEvent } from '../lib/events'
-import { otherProfile, type Profile } from '../lib/session'
+import { logEvent, unlogEvent, today } from '../lib/events'
+import { makeThumb, normalizePhoto, uploadMedia, removeMedia, mediaUrl, fileExt } from '../lib/media'
+import type { Profile } from '../lib/session'
 import { Icon } from '../components/Icon'
-import {
-  EmptyState, Fab, Field, RatingBar, ScorePair, Sheet, useConfirm, useToast,
-} from '../components/ui'
-import { uploadMedia, removeMedia, mediaUrl, fileExt } from '../lib/media'
+import { EmptyState, Fab, Field, Sheet, useConfirm, useToast, SectionTitle } from '../components/ui'
 
-/* Nachos and salad sandwiches are the same game with a different subject, so
-   they share one component and differ only in copy (and nachos gets video). */
+/* ==========================================================================
+   Nachos & salad sangas.
+
+   Same shape as the MCU rewatch: a checklist of spots (imported in bulk or
+   added one at a time), ticked off as you eat your way through. A ticked
+   spot goes straight to placement in the ranking — nachos are James's
+   ranking, sangas are Lee's — and can carry a photo and a video.
+   ========================================================================== */
 
 type VenueRow = {
   id: string
@@ -24,6 +28,10 @@ type VenueRow = {
   notes: string | null
   visited: boolean
   visited_on: string | null
+  /** The owner's placement — 1 is best. */
+  rank: number | null
+  photo_path: string | null
+  photo_thumb: string | null
   video_path: string | null
   score_james: number | null
   score_lee: number | null
@@ -35,75 +43,105 @@ type VenueRow = {
 }
 
 const uid = () => (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`)
-const sKey = (slug: string): 'score_james' | 'score_lee' =>
-  slug === 'james' ? 'score_james' : 'score_lee'
-
-const nKey = (slug: string): 'notes_james' | 'notes_lee' =>
-  slug === 'james' ? 'notes_james' : 'notes_lee'
-
-function avgOf(v: VenueRow) {
-  const xs = [v.score_james, v.score_lee].filter((x): x is number => x != null)
-  return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null
-}
 
 const COPY = {
-  nachos: { one: 'nachos', title: 'Nachos', icon: '🌮', video: true },
-  salad: { one: 'salad sanga', title: 'Salad Sangas', icon: '🥪', video: false },
+  nachos: { one: 'nachos', title: 'Nachos', icon: '🌮', ranker: 'James' },
+  salad: { one: 'salad sanga', title: 'Salad Sangas', icon: '🥪', ranker: 'Lee' },
 } as const
 
-type View = 'pick' | 'list'
+type View = 'list' | 'ranked'
 
 export function VenuesTab({ kind, me }: { kind: 'nachos' | 'salad'; me: Profile }) {
   const { rows, upsert, remove } = useCollection<VenueRow>('lj_venues')
   const toast = useToast()
   const confirm = useConfirm()
-  const them = otherProfile(me.slug)
   const copy = COPY[kind]
+  const listRef = useRef<HTMLDivElement>(null)
 
-  const [view, setView] = useState<View>('pick')
-  const [adding, setAdding] = useState(false)
+  const [view, setView] = useState<View>('list')
   const [editing, setEditing] = useState<VenueRow | null>(null)
-  const [filter, setFilter] = useState<'all' | 'todo' | 'ranked'>('all')
-  // The pick is per-phone: it's a "we're deciding right now" thing.
-  const [pickId, setPickId] = useState<string | null>(null)
+  const [addingNew, setAddingNew] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [placing, setPlacing] = useState<VenueRow | null>(null)
 
-  const mine = useMemo(() => rows.filter((r) => r.kind === kind), [rows, kind])
+  const mine = useMemo(
+    () =>
+      rows
+        .filter((r) => r.kind === kind)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [rows, kind],
+  )
   const untried = useMemo(() => mine.filter((v) => !v.visited), [mine])
-  const pick = pickId ? mine.find((v) => v.id === pickId) ?? null : null
+  const ranked = useMemo(
+    () =>
+      mine
+        .filter((v) => v.visited && v.rank != null)
+        .sort((a, b) => a.rank! - b.rank!),
+    [mine],
+  )
+  const tray = useMemo(() => mine.filter((v) => v.visited && v.rank == null), [mine])
 
-  const spin = () => {
-    if (!untried.length) return
-    const pool = untried.filter((v) => v.id !== pickId)
-    const next = pool.length ? pool[Math.floor(Math.random() * pool.length)] : untried[0]
-    setPickId(next.id)
+  /* --- actions ---------------------------------------------------------- */
+
+  const toggle = async (v: VenueRow) => {
+    const visited = !v.visited
+    await upsert({
+      id: v.id,
+      visited,
+      visited_on: visited ? today() : null,
+      ...(visited ? {} : { rank: null }),
+    } as Partial<VenueRow> as VenueRow)
+    if (visited) {
+      logEvent({ room: kind, kind: 'visited', refId: v.id, label: v.name, by: me.slug })
+      setPlacing({ ...v, visited: true })
+    } else {
+      unlogEvent(kind, 'visited', v.id)
+    }
   }
 
-  const list = useMemo(() => {
-    const f = mine.filter((v) => {
-      if (filter === 'todo') return !v.visited
-      if (filter === 'ranked') return avgOf(v) != null
-      return true
-    })
-    return f.sort((a, b) => {
-      const av = avgOf(a)
-      const bv = avgOf(b)
-      if (av != null && bv != null) return bv - av
-      if (av != null) return -1
-      if (bv != null) return 1
-      return (b.created_at ?? '').localeCompare(a.created_at ?? '')
-    })
-  }, [mine, filter])
+  const place = async (v: VenueRow, slot: number) => {
+    const order = ranked.filter((r) => r.id !== v.id).map((r) => r.id)
+    order.splice(slot, 0, v.id)
+    await Promise.all(
+      order.map((id, i) => upsert({ id, rank: i + 1 } as Partial<VenueRow> as VenueRow)),
+    )
+    toast(`${v.name} — #${slot + 1}`, 'good')
+    setPlacing(null)
+  }
 
-  const rated = mine.filter((v) => avgOf(v) != null)
-  const best = rated.length ? [...rated].sort((a, b) => avgOf(b)! - avgOf(a)!)[0] : null
-  const overall = rated.length ? rated.reduce((a, v) => a + avgOf(v)!, 0) / rated.length : null
+  const reorder = async (from: number, to: number) => {
+    if (to < 0 || to >= ranked.length) return
+    const order = ranked.map((r) => r.id)
+    const [moved] = order.splice(from, 1)
+    order.splice(to, 0, moved)
+    await Promise.all(
+      order.map((id, i) => upsert({ id, rank: i + 1 } as Partial<VenueRow> as VenueRow)),
+    )
+  }
+
+  const pickForUs = () => {
+    if (!untried.length) {
+      toast('Nothing left to try — add more spots', 'bad')
+      return
+    }
+    const pick = untried[Math.floor(Math.random() * untried.length)]
+    const el = listRef.current?.querySelector(`[data-vid="${pick.id}"]`)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el?.classList.remove('is-picked')
+    requestAnimationFrame(() => el?.classList.add('is-picked'))
+    toast(`${copy.icon}  ${pick.name}${pick.suburb ? ` — ${pick.suburb}` : ''}`, 'good')
+  }
+
+  /* --- render ----------------------------------------------------------- */
 
   return (
     <>
       {mine.length > 0 && (
         <div className="stat-strip">
           <div className="stat-cell">
-            <div className="stat-cell-value" style={{ color: 'var(--accent)' }}>{rated.length}</div>
+            <div className="stat-cell-value" style={{ color: 'var(--accent)' }}>
+              {mine.length - untried.length}
+            </div>
             <div className="eyebrow">Eaten</div>
           </div>
           <div className="stat-cell">
@@ -111,8 +149,8 @@ export function VenuesTab({ kind, me }: { kind: 'nachos' | 'salad'; me: Profile 
             <div className="eyebrow">To try</div>
           </div>
           <div className="stat-cell">
-            <div className="stat-cell-value">{overall?.toFixed(1) ?? '—'}</div>
-            <div className="eyebrow">Avg</div>
+            <div className="stat-cell-value">{ranked.length}</div>
+            <div className="eyebrow">Ranked</div>
           </div>
         </div>
       )}
@@ -120,213 +158,267 @@ export function VenuesTab({ kind, me }: { kind: 'nachos' | 'salad'; me: Profile 
       <div className="seg">
         {(
           [
-            ['pick', 'Tonight'],
             ['list', `The list${mine.length ? ` · ${mine.length}` : ''}`],
+            ['ranked', `Ranked${ranked.length ? ` · ${ranked.length}` : ''}`],
           ] as [View, string][]
         ).map(([id, label]) => (
-          <button key={id} className={`seg-btn ${view === id ? 'is-on' : ''}`} onClick={() => setView(id)} data-pressable>
+          <button
+            key={id}
+            className={`seg-btn ${view === id ? 'is-on' : ''}`}
+            onClick={() => setView(id)}
+            data-pressable
+          >
             {label}
           </button>
         ))}
       </div>
 
-      {view === 'pick' && (
-        <div className="stack">
-          {best && (
-            <div className="card champ">
-              <span className="eyebrow champ-label">Reigning champion</span>
-              <div className="champ-row">
-                <span className="champ-icon">{copy.icon}</span>
-                <div className="grow">
-                  <div className="champ-name">{best.name}</div>
-                  {best.suburb && <div className="champ-sub">{best.suburb}</div>}
-                </div>
-                <span className="champ-score display">{avgOf(best)!.toFixed(1)}</span>
-              </div>
-            </div>
-          )}
-
-          {!untried.length ? (
+      {view === 'list' && (
+        <div className="stack" ref={listRef}>
+          {mine.length === 0 ? (
             <EmptyState
               icon={copy.icon}
-              title={mine.length ? 'All tried!' : `No ${copy.one} spots yet`}
-              hint={mine.length ? 'Add more spots and the picker wakes back up.' : 'Load the list in and let the app decide where you eat.'}
+              title={`No ${copy.one} spots yet`}
+              hint="Paste the whole list in at once, or add spots one by one."
               action={
-                <button className="btn btn-accent" onClick={() => setAdding(true)} data-pressable>
-                  Add a spot
+                <button className="btn btn-accent" onClick={() => setImporting(true)} data-pressable>
+                  Import the list
                 </button>
               }
             />
-          ) : !pick ? (
-            <>
-              <div className="card pos-invite">
-                <div className="pos-invite-glyph">{copy.icon}</div>
-                <div className="pos-invite-title display">{untried.length} spot{untried.length === 1 ? '' : 's'} to try</div>
-                <div className="pos-invite-sub">Can't decide? Don't.</div>
-              </div>
-              <button className="btn btn-accent btn-block pos-cta" onClick={spin} data-pressable>
-                <Icon name="shuffle" size={17} />
-                Pick for us
-              </button>
-            </>
           ) : (
-            <div className="card venue-pick rise" key={pick.id}>
-              <span className="eyebrow venue-pick-eyebrow">Tonight's contender</span>
-              <div className="venue-pick-name display">{pick.name}</div>
-              <div className="venue-pick-meta">
-                {pick.suburb && <span>{pick.suburb}</span>}
-                {pick.price != null && <span className="num">${pick.price.toFixed(2)}</span>}
-                {pick.url && (
-                  <a href={pick.url} target="_blank" rel="noreferrer" className="venue-pick-link">
-                    <Icon name="map" size={13} /> Look it up
-                  </a>
-                )}
-              </div>
-              {pick.notes && <p className="venue-pick-notes selectable">{pick.notes}</p>}
-
-              <button
-                className="btn btn-accent btn-block"
-                onClick={() => setEditing(pick)}
-                data-pressable
-              >
-                We went — rank it
-              </button>
+            <>
               <div className="row">
-                <button className="btn btn-quiet btn-sm grow" onClick={spin} data-pressable>
-                  <Icon name="shuffle" size={13} /> Somewhere else
+                <button className="btn btn-quiet btn-sm grow" onClick={pickForUs} data-pressable>
+                  <Icon name="shuffle" size={14} /> Pick for us
                 </button>
-                <button className="btn btn-quiet btn-sm grow" onClick={() => setPickId(null)} data-pressable>
-                  <Icon name="undo" size={13} /> Put it back
+                <button className="btn btn-quiet btn-sm grow" onClick={() => setImporting(true)} data-pressable>
+                  <Icon name="plus" size={14} /> Import more
                 </button>
               </div>
-            </div>
+
+              {mine.map((v) => (
+                <div key={v.id} data-vid={v.id} className={`venue-item card ${v.visited ? 'is-done' : ''}`}>
+                  <button
+                    className={`mcu-tick ${v.visited ? 'is-on' : ''}`}
+                    onClick={() => toggle(v)}
+                    aria-label={v.visited ? 'Mark untried' : 'Mark eaten'}
+                    data-pressable
+                  >
+                    {v.visited && <Icon name="check" size={14} strokeWidth={2.6} />}
+                  </button>
+                  <button className="venue-item-main" onClick={() => setEditing(v)} data-pressable data-press-scale="subtle">
+                    <div className="grow venue-body">
+                      <div className="venue-name">{v.name}</div>
+                      <div className="venue-meta">
+                        {v.suburb && <span>{v.suburb}</span>}
+                        {v.price != null && <span className="num">${v.price.toFixed(2)}</span>}
+                        {v.rank != null && <span className="chip venue-rank-chip">#{v.rank}</span>}
+                        {v.photo_thumb && <Icon name="camera" size={12} />}
+                        {v.video_path && <Icon name="video" size={12} />}
+                      </div>
+                    </div>
+                    <Icon name="chevron" size={14} />
+                  </button>
+                </div>
+              ))}
+            </>
           )}
         </div>
       )}
 
-      {view === 'list' && (
+      {view === 'ranked' && (
         <div className="stack">
-          {mine.length > 0 && (
-            <div className="filters scroll-x">
-              {(
-                [
-                  ['all', 'All'],
-                  ['ranked', 'Rated'],
-                  ['todo', 'To try'],
-                ] as const
-              ).map(([id, label]) => (
-                <button key={id} className={`filter ${filter === id ? 'is-on' : ''}`} onClick={() => setFilter(id)} data-pressable>
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {list.length === 0 ? (
-            <EmptyState
-              icon={copy.icon}
-              title={mine.length ? 'Nothing here' : `No ${copy.one} yet`}
-              hint={mine.length ? 'Try another filter.' : `Add the first spot — you said you've got a list coming.`}
-              action={!mine.length && (
-                <button className="btn btn-accent" onClick={() => setAdding(true)} data-pressable>Add a spot</button>
-              )}
-            />
-          ) : (
-            list.map((v, i) => {
-              const avg = avgOf(v)
-              return (
-                <button key={v.id} className="venue card" onClick={() => setEditing(v)} data-pressable data-press-scale="subtle">
-                  <span className={`venue-rank display ${avg != null && i < 3 ? `is-${i + 1}` : ''}`}>
-                    {avg != null ? i + 1 : '·'}
-                  </span>
+          {tray.length > 0 && (
+            <>
+              <SectionTitle right={<span className="eyebrow">{tray.length} waiting</span>}>
+                To place
+              </SectionTitle>
+              {tray.map((v) => (
+                <div key={v.id} className="mcu-tray card">
                   <div className="grow venue-body">
                     <div className="venue-name">{v.name}</div>
-                    <div className="venue-meta">
-                      {v.suburb && <span>{v.suburb}</span>}
-                      {v.price != null && <span className="num">${v.price.toFixed(2)}</span>}
-                      {!v.visited && <span className="chip venue-todo">To try</span>}
-                      {v.video_path && <Icon name="video" size={12} />}
-                    </div>
-                    {avg != null && (
-                      <div className="venue-scores">
-                        <span className="num" style={{ color: 'var(--rose)' }}>{v.score_james?.toFixed(1) ?? '—'}</span>
-                        <span className="venue-sep">/</span>
-                        <span className="num" style={{ color: 'var(--gold)' }}>{v.score_lee?.toFixed(1) ?? '—'}</span>
-                      </div>
-                    )}
+                    {v.suburb && <div className="venue-meta">{v.suburb}</div>}
                   </div>
-                  <span className="venue-avg display">{avg?.toFixed(1) ?? '—'}</span>
-                </button>
-              )
-            })
+                  <button className="btn btn-accent btn-sm" onClick={() => setPlacing(v)} data-pressable>
+                    Rank it
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
+
+          {ranked.length === 0 && tray.length === 0 ? (
+            <EmptyState
+              icon="🏆"
+              title="Nothing ranked yet"
+              hint={`Tick spots off The list and ${copy.ranker} places them here.`}
+            />
+          ) : (
+            ranked.length > 0 && (
+              <>
+                <SectionTitle right={<span className="eyebrow">{copy.ranker}'s ranking</span>}>
+                  The order
+                </SectionTitle>
+                {ranked.map((v, i) => (
+                  <div key={v.id} className="mcu-char card">
+                    <span className={`mcu-char-rank display ${i < 3 ? `is-${i + 1}` : ''}`}>{i + 1}</span>
+                    <button className="mcu-char-main" onClick={() => setEditing(v)} data-pressable data-press-scale="subtle">
+                      {v.photo_thumb ? (
+                        <img className="venue-thumb" src={v.photo_thumb} alt="" />
+                      ) : (
+                        <span className="venue-thumb is-empty">{copy.icon}</span>
+                      )}
+                      <div className="grow mcu-char-body">
+                        <div className="mcu-char-name">{v.name}</div>
+                        <div className="mcu-char-meta truncate">
+                          {v.suburb && <span>{v.suburb}</span>}
+                          {v.video_path && <Icon name="video" size={11} />}
+                        </div>
+                      </div>
+                    </button>
+                    <div className="rank-tools">
+                      <button className="icon-btn" disabled={i === 0} onClick={() => reorder(i, i - 1)} aria-label="Up" data-pressable>
+                        <Icon name="chevron" size={14} className="rot-up" />
+                      </button>
+                      <button className="icon-btn" disabled={i === ranked.length - 1} onClick={() => reorder(i, i + 1)} aria-label="Down" data-pressable>
+                        <Icon name="chevron" size={14} className="rot-down" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )
           )}
         </div>
       )}
 
-      <Fab onClick={() => setAdding(true)} label="Add a spot" />
+      <Fab onClick={() => setAddingNew(true)} label="Add a spot" />
+
+      {/* --- placement --- */}
+      <Sheet
+        open={!!placing}
+        onClose={() => setPlacing(null)}
+        title={placing ? `Where does ${placing.name} sit?` : ''}
+      >
+        <p className="muted place-hint">
+          {copy.ranker}'s call — tap the gap it belongs in, best at the top.
+        </p>
+        <div className="place-list">
+          <PlaceSlot
+            label={ranked.length ? 'Top of the pile' : 'First one in'}
+            onClick={() => place(placing!, 0)}
+          />
+          {ranked
+            .filter((r) => r.id !== placing?.id)
+            .map((r, i) => (
+              <div key={r.id}>
+                <div className="place-entry">
+                  <span className="place-rank num">{i + 1}</span>
+                  <span className="grow truncate">{r.name}</span>
+                </div>
+                <PlaceSlot
+                  label={i === ranked.length - 1 ? 'Bottom of the pile' : 'Here'}
+                  onClick={() => place(placing!, i + 1)}
+                />
+              </div>
+            ))}
+        </div>
+        <button className="btn btn-quiet btn-block btn-sm" onClick={() => setPlacing(null)} data-pressable>
+          Later — leave it in the waiting pile
+        </button>
+      </Sheet>
 
       <VenueSheet
-        open={adding || !!editing}
+        open={addingNew || !!editing}
         row={editing}
-        me={me}
-        them={them}
         copy={copy}
-        onClose={() => { setAdding(false); setEditing(null) }}
+        onClose={() => {
+          setAddingNew(false)
+          setEditing(null)
+        }}
         onSave={async (patch) => {
           const isNew = !editing
           const id = isNew ? uid() : editing!.id
           await upsert(
             isNew
-              ? ({ ...patch, id, kind, added_by: me.slug, created_at: new Date().toISOString() } as VenueRow)
+              ? ({ ...patch, id, kind, visited: false, rank: null, added_by: me.slug, created_at: new Date().toISOString() } as VenueRow)
               : ({ ...patch, id } as VenueRow),
           )
-          if (patch.visited) {
+          // A corrected date rewrites the same ledger entry.
+          if (!isNew && editing!.visited && patch.visited_on) {
             logEvent({
               room: kind, kind: 'visited', refId: id,
-              label: patch.name ?? editing?.name ?? '?',
-              happenedOn: patch.visited_on ?? null,
-              meta: { score_james: patch.score_james ?? null, score_lee: patch.score_lee ?? null },
-              by: me.slug,
+              label: patch.name ?? editing!.name, happenedOn: patch.visited_on, by: me.slug,
             })
           }
-          setAdding(false)
+          setAddingNew(false)
           setEditing(null)
           toast(isNew ? 'Added' : 'Saved', 'good')
         }}
-        onDelete={editing ? async () => {
-          const ok = await confirm({ title: `Delete ${editing.name}?`, confirmLabel: 'Delete', danger: true })
-          if (!ok) return
-          if (editing.video_path) void removeMedia(editing.video_path)
-          await remove(editing.id)
-          setEditing(null)
-        } : undefined}
-        onVideoSaved={async (row, path) => {
-          await upsert({ id: row.id, video_path: path } as Partial<VenueRow> as VenueRow)
-        }}
-        onVideoRemoved={async (row) => {
-          if (row.video_path) void removeMedia(row.video_path)
-          await upsert({ id: row.id, video_path: null } as Partial<VenueRow> as VenueRow)
+        onDelete={
+          editing
+            ? async () => {
+                const ok = await confirm({ title: `Delete ${editing.name}?`, confirmLabel: 'Delete', danger: true })
+                if (!ok) return
+                if (editing.photo_path) void removeMedia(editing.photo_path)
+                if (editing.video_path) void removeMedia(editing.video_path)
+                await remove(editing.id)
+                unlogEvent(kind, 'visited', editing.id)
+                setEditing(null)
+              }
+            : undefined
+        }
+      />
+
+      <ImportSheet
+        open={importing}
+        copy={copy}
+        onClose={() => setImporting(false)}
+        onImport={async (entries) => {
+          await Promise.all(
+            entries.map((e) =>
+              upsert({
+                id: uid(), kind, name: e.name, suburb: e.suburb,
+                address: null, url: null, price: null, notes: null,
+                visited: false, visited_on: null, rank: null,
+                photo_path: null, photo_thumb: null, video_path: null,
+                score_james: null, score_lee: null, notes_james: null, notes_lee: null,
+                added_by: me.slug, created_at: new Date().toISOString(),
+              } as VenueRow),
+            ),
+          )
+          setImporting(false)
+          toast(`${entries.length} spot${entries.length === 1 ? '' : 's'} on the list`, 'good')
         }}
       />
     </>
   )
 }
 
-/* -------------------------------------------------------------------------- */
+function PlaceSlot({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button className="place-slot" onClick={onClick} data-pressable>
+      <span className="place-slot-line" />
+      <span className="place-slot-label">{label}</span>
+      <span className="place-slot-line" />
+    </button>
+  )
+}
+
+/* ==========================================================================
+   One spot: details, the date, and the keepsakes
+   ========================================================================== */
 
 function VenueSheet({
-  open, row, me, them, copy, onClose, onSave, onDelete, onVideoSaved, onVideoRemoved,
+  open, row, copy, onClose, onSave, onDelete,
 }: {
   open: boolean
   row: VenueRow | null
-  me: Profile
-  them: Profile
   copy: (typeof COPY)[keyof typeof COPY]
   onClose: () => void
   onSave: (patch: Partial<VenueRow>) => void
   onDelete?: () => void
-  onVideoSaved: (row: VenueRow, path: string) => Promise<void>
-  onVideoRemoved: (row: VenueRow) => Promise<void>
 }) {
   const toast = useToast()
   const [name, setName] = useState('')
@@ -334,49 +426,70 @@ function VenueSheet({
   const [price, setPrice] = useState('')
   const [url, setUrl] = useState('')
   const [notes, setNotes] = useState('')
-  const [mine, setMine] = useState<number | null>(null)
-  const [theirs, setTheirs] = useState<number | null>(null)
-  const [myNote, setMyNote] = useState('')
-  const [visited, setVisited] = useState(false)
   const [when, setWhen] = useState('')
-  const [uploading, setUploading] = useState(false)
+  const [photo, setPhoto] = useState<{ path: string; thumb: string } | null>(null)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const [photoFull, setPhotoFull] = useState<string | null>(null)
+  const [videoBusy, setVideoBusy] = useState(false)
+  const [videoPath, setVideoPath] = useState<string | null>(null)
   const [watching, setWatching] = useState(false)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!open) return
+  // Reset per open — keyed on the row identity.
+  const openedFor = useRef<string | null>(null)
+  const target = row?.id ?? (open ? 'new' : null)
+  if (open && openedFor.current !== target) {
+    openedFor.current = target
     setName(row?.name ?? '')
     setSuburb(row?.suburb ?? '')
     setPrice(row?.price != null ? String(row.price) : '')
     setUrl(row?.url ?? '')
     setNotes(row?.notes ?? '')
-    setMine(row?.[sKey(me.slug)] ?? null)
-    setTheirs(row?.[sKey(them.slug)] ?? null)
-    setMyNote(row?.[nKey(me.slug)] ?? '')
-    setVisited(row?.visited ?? false)
     setWhen(row?.visited_on ?? '')
+    setPhoto(row?.photo_path && row.photo_thumb ? { path: row.photo_path, thumb: row.photo_thumb } : null)
+    setPhotoFull(null)
+    setVideoPath(row?.video_path ?? null)
     setWatching(false)
     setVideoUrl(null)
-  }, [open, row, me.slug, them.slug])
+    if (row?.photo_path) void mediaUrl(row.photo_path).then(setPhotoFull)
+  }
+  if (!open && openedFor.current) openedFor.current = null
 
-  const uploadVideo = async (file: File) => {
-    if (!row) return
-    setUploading(true)
+  const mediaId = row?.id
+  const pickPhoto = async (file: File) => {
+    setPhotoBusy(true)
     try {
-      const path = `venues/${row.id}.${fileExt(file)}`
+      const { blob, ext } = await normalizePhoto(file)
+      const path = `venues/${mediaId}-photo.${ext}`
+      const thumb = await makeThumb(blob)
+      await uploadMedia(path, blob)
+      if (photo && photo.path !== path) void removeMedia(photo.path)
+      setPhoto({ path, thumb })
+      setPhotoFull(null)
+    } catch (e) {
+      toast(`Photo failed — ${e instanceof Error ? e.message : 'unknown error'}`, 'bad')
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
+
+  const pickVideo = async (file: File) => {
+    setVideoBusy(true)
+    try {
+      const path = `venues/${mediaId}.${fileExt(file)}`
       await uploadMedia(path, file)
-      await onVideoSaved(row, path)
+      setVideoPath(path)
       toast('Video saved', 'good')
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Couldn't upload the video", 'bad')
+      toast(`Video failed — ${e instanceof Error ? e.message : 'unknown error'}`, 'bad')
     } finally {
-      setUploading(false)
+      setVideoBusy(false)
     }
   }
 
   const watchVideo = async () => {
-    if (!row?.video_path) return
-    const u = await mediaUrl(row.video_path)
+    if (!videoPath) return
+    const u = await mediaUrl(videoPath)
     if (!u) {
       toast('Needs internet to fetch the video', 'bad')
       return
@@ -408,12 +521,11 @@ function VenueSheet({
                   price: price ? Number(price) : null,
                   url: url.trim() || null,
                   notes: notes.trim() || null,
-                  visited: visited || mine != null || theirs != null,
-                  visited_on: when || null,
-                  [sKey(me.slug)]: mine,
-                  [sKey(them.slug)]: theirs,
-                  [nKey(me.slug)]: myNote.trim() || null,
-                } as Partial<VenueRow>)
+                  ...(row?.visited ? { visited_on: when || null } : {}),
+                  photo_path: photo?.path ?? null,
+                  photo_thumb: photo?.thumb ?? null,
+                  video_path: videoPath,
+                })
               }
               data-pressable
             >
@@ -429,71 +541,142 @@ function VenueSheet({
         </div>
         <Field label="Link" hint="Menu, maps, whatever."><input value={url} onChange={(e) => setUrl(e.target.value)} inputMode="url" placeholder="https://" /></Field>
 
-        <hr className="divider" />
-
-        <ScorePair mine={mine} theirs={theirs} myName={me.name} theirName={them.name} />
-        <RatingBar label={`${me.name} — your score`} value={mine} onChange={setMine} accent={me.accent} />
-        <RatingBar label={`${them.name}'s score`} value={theirs} onChange={setTheirs} accent={them.accent} />
-
-        <Field label="When did we go?"><input type="date" value={when} onChange={(e) => setWhen(e.target.value)} /></Field>
-        <Field label={`${me.name}'s verdict`}><textarea value={myNote} onChange={(e) => setMyNote(e.target.value)} placeholder="Cheese ratio, crunch, the works…" /></Field>
-
-        {row?.[nKey(them.slug)] && (
-          <div className="their-note">
-            <span className="eyebrow">{them.name} said</span>
-            <p className="selectable">{row[nKey(them.slug)]}</p>
-          </div>
+        {row?.visited && (
+          <Field label="When did we go?" hint="Backdate it if you're logging late.">
+            <input type="date" value={when} onChange={(e) => setWhen(e.target.value)} />
+          </Field>
         )}
 
-        <Field label="Shared notes"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What to order next time…" /></Field>
+        <Field label="Notes"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What to order, verdicts, the works…" /></Field>
 
-        {copy.video && row && (
+        {row && (
           <>
             <hr className="divider" />
-            <div className="stack">
-              <span className="eyebrow">The evidence</span>
-              {row.video_path ? (
-                <div className="row">
-                  <button className="btn btn-outline btn-sm grow" onClick={watchVideo} data-pressable>
-                    <Icon name="play" size={14} /> Watch the video
-                  </button>
-                  <label className={`btn btn-quiet btn-sm grow set-import`} data-pressable>
-                    <Icon name="video" size={14} /> {uploading ? 'Uploading…' : 'Replace'}
-                    <input type="file" accept="video/*" hidden disabled={uploading} onChange={(e) => {
-                      const f = e.target.files?.[0]
-                      if (f) void uploadVideo(f)
-                      e.target.value = ''
-                    }} />
-                  </label>
-                  <button
-                    className="btn btn-quiet btn-sm"
-                    onClick={() => void onVideoRemoved(row)}
-                    aria-label="Remove video"
-                    data-pressable
-                  >
-                    <Icon name="trash" size={14} />
-                  </button>
-                </div>
+            <span className="eyebrow">The evidence</span>
+
+            {photo && (
+              <div className="photo-frame">
+                <img src={photoFull ?? photo.thumb} alt="" />
+              </div>
+            )}
+            <div className="row">
+              <label className="btn btn-quiet btn-sm grow set-import" data-pressable>
+                <Icon name="camera" size={14} />
+                {photoBusy ? 'Uploading…' : photo ? 'Replace photo' : 'Add a photo'}
+                <input type="file" accept="image/*,.heic,.heif" hidden disabled={photoBusy} onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) void pickPhoto(f)
+                  e.target.value = ''
+                }} />
+              </label>
+              {videoPath ? (
+                <button className="btn btn-outline btn-sm grow" onClick={watchVideo} data-pressable>
+                  <Icon name="play" size={14} /> Watch video
+                </button>
               ) : (
-                <label className="btn btn-quiet btn-block btn-sm set-import" data-pressable>
-                  <Icon name="video" size={14} /> {uploading ? 'Uploading…' : 'Add a video'}
-                  <input type="file" accept="video/*" hidden disabled={uploading} onChange={(e) => {
+                <label className="btn btn-quiet btn-sm grow set-import" data-pressable>
+                  <Icon name="video" size={14} />
+                  {videoBusy ? 'Uploading…' : 'Add a video'}
+                  <input type="file" accept="video/*" hidden disabled={videoBusy} onChange={(e) => {
                     const f = e.target.files?.[0]
-                    if (f) void uploadVideo(f)
+                    if (f) void pickVideo(f)
                     e.target.value = ''
                   }} />
                 </label>
               )}
             </div>
+            {videoPath && (
+              <label className="btn btn-quiet btn-block btn-sm set-import" data-pressable>
+                <Icon name="video" size={14} /> {videoBusy ? 'Uploading…' : 'Replace the video'}
+                <input type="file" accept="video/*" hidden disabled={videoBusy} onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) void pickVideo(f)
+                  e.target.value = ''
+                }} />
+              </label>
+            )}
           </>
         )}
       </Sheet>
 
       <Sheet open={watching} onClose={() => setWatching(false)} title={row?.name}>
-        {videoUrl && (
-          <video className="venue-video" src={videoUrl} controls autoPlay playsInline />
-        )}
+        {videoUrl && <video className="venue-video" src={videoUrl} controls autoPlay playsInline />}
       </Sheet>
     </>
+  )
+}
+
+/* ==========================================================================
+   Bulk import — paste the list, one spot per line
+   ========================================================================== */
+
+function ImportSheet({
+  open, copy, onClose, onImport,
+}: {
+  open: boolean
+  copy: (typeof COPY)[keyof typeof COPY]
+  onClose: () => void
+  onImport: (entries: { name: string; suburb: string | null }[]) => Promise<void>
+}) {
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const entries = useMemo(
+    () =>
+      text
+        .split('\n')
+        .map((l) => l.trim().replace(/^[-•*\d.)\s]+/, ''))
+        .filter(Boolean)
+        .map((l) => {
+          const m = l.split(/\s+[—–|]\s+|,\s+/)
+          return { name: m[0].trim(), suburb: m[1]?.trim() || null }
+        })
+        .filter((e) => e.name),
+    [text],
+  )
+
+  return (
+    <Sheet
+      open={open}
+      onClose={onClose}
+      title={`Import ${copy.title.toLowerCase()}`}
+      footer={
+        <button
+          className="btn btn-accent"
+          disabled={!entries.length || busy}
+          onClick={async () => {
+            setBusy(true)
+            try {
+              await onImport(entries)
+              setText('')
+            } finally {
+              setBusy(false)
+            }
+          }}
+          data-pressable
+        >
+          {busy ? 'Importing…' : `Add ${entries.length || 'the'} spot${entries.length === 1 ? '' : 's'}`}
+        </button>
+      }
+    >
+      <Field
+        label="One spot per line"
+        hint={'Add a suburb with a comma or dash: "El Rincon, Fitzroy". Numbering and bullets are stripped.'}
+      >
+        <textarea
+          className="import-box"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={'El Rincon, Fitzroy\nCasa Nacho — Brunswick\nLoco Taqueria'}
+          autoFocus
+        />
+      </Field>
+      {entries.length > 0 && (
+        <p className="muted place-hint">
+          {entries.length} spot{entries.length === 1 ? '' : 's'} ready
+          {entries.some((e) => e.suburb) ? ' (suburbs picked up)' : ''}.
+        </p>
+      )}
+    </Sheet>
   )
 }
