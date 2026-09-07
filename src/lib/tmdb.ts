@@ -123,6 +123,20 @@ export async function search(query: string, kind: 'movie' | 'tv'): Promise<TmdbH
   })
 }
 
+export type TmdbEpisode = {
+  season: number
+  episode: number
+  air_date: string | null
+  name: string | null
+}
+
+export type TmdbSeason = {
+  season_number: number
+  name: string | null
+  air_date: string | null
+  episode_count: number | null
+}
+
 export type TmdbDetail = TmdbHit & {
   genres: string[]
   runtime: number | null
@@ -133,7 +147,23 @@ export type TmdbDetail = TmdbHit & {
   language: string | null
   country: string | null
   vote_average: number | null
+  /** TV only. Specials (season 0) are left out. */
+  season_list: TmdbSeason[]
+  /** TV only. 'Returning Series', 'Ended', 'Canceled', … */
+  tmdb_status: string | null
+  next_episode: TmdbEpisode | null
+  last_episode: TmdbEpisode | null
 }
+
+const episodeOf = (e: any): TmdbEpisode | null =>
+  e && e.season_number != null && e.episode_number != null
+    ? {
+        season: e.season_number,
+        episode: e.episode_number,
+        air_date: e.air_date || null,
+        name: e.name || null,
+      }
+    : null
 
 /** Full metadata for one title — this is what makes the analytics worth having. */
 export async function detail(id: number, kind: 'movie' | 'tv'): Promise<TmdbDetail> {
@@ -163,6 +193,20 @@ export async function detail(id: number, kind: 'movie' | 'tv'): Promise<TmdbDeta
     language: d.original_language ?? null,
     country: (d.production_countries ?? [])[0]?.iso_3166_1 ?? (d.origin_country ?? [])[0] ?? null,
     vote_average: d.vote_average ?? null,
+    season_list:
+      kind === 'tv'
+        ? (d.seasons ?? [])
+            .filter((s: any) => s.season_number > 0)
+            .map((s: any): TmdbSeason => ({
+              season_number: s.season_number,
+              name: s.name || null,
+              air_date: s.air_date || null,
+              episode_count: s.episode_count ?? null,
+            }))
+        : [],
+    tmdb_status: kind === 'tv' ? d.status || null : null,
+    next_episode: kind === 'tv' ? episodeOf(d.next_episode_to_air) : null,
+    last_episode: kind === 'tv' ? episodeOf(d.last_episode_to_air) : null,
   }
 }
 

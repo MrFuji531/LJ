@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import './RateReveal.css'
 
-import type { TitleRow } from '../tabs/Titles'
-import { scoreKey, pendingKey } from '../tabs/Titles'
+import { scoreKey, pendingKey, type Ratable } from '../lib/titles'
 import { collection } from '../lib/collection'
 import { logEvent } from '../lib/events'
 import { otherProfile, type Profile } from '../lib/session'
@@ -22,6 +21,24 @@ import { RatingBar } from './ui'
 
 type Stage = 'mine' | 'handoff' | 'theirs' | 'countdown' | 'reveal'
 
+/**
+ * What's being rated: a film (the title row itself) or one season of a show.
+ * The overlay only needs the scores and pendings; everything else is about
+ * where the final numbers go and what the ledger calls it.
+ */
+export type RateSubject = {
+  table: 'lj_titles' | 'lj_seasons'
+  row: Ratable
+  title: string
+  subtitle?: string | null
+  poster_path: string | null
+  room: 'movies' | 'shows'
+  eventKind: string
+  eventLabel: string
+  /** Written alongside the final scores — e.g. the pile the row lands in. */
+  finalPatch?: Record<string, unknown>
+}
+
 const gapLine = (a: number, b: number) => {
   const gap = Math.abs(a - b)
   if (gap === 0) return 'Perfectly in sync.'
@@ -32,18 +49,19 @@ const gapLine = (a: number, b: number) => {
 }
 
 export function RateReveal({
-  row,
+  subject,
   me,
   onDone,
   onClose,
 }: {
-  row: TitleRow
+  subject: RateSubject
   me: Profile
   /** Fired after the reveal has played and the scores are final. */
-  onDone: (row: TitleRow) => void
+  onDone: (subject: RateSubject) => void
   onClose: () => void
 }) {
   const them = otherProfile(me.slug)
+  const row = subject.row
 
   const myPending = row[pendingKey(me.slug)]
   const theirPending = row[pendingKey(them.slug)]
@@ -62,7 +80,7 @@ export function RateReveal({
 
   const submit = (who: Profile) => {
     if (draft == null) return
-    void onSubmitScore(row, who, draft)
+    void onSubmitScore(subject, who, draft)
     setDraft(null)
     if (who.slug === me.slug) setStage(theirPending != null ? 'countdown' : 'handoff')
     // Submitting the second score flips both pendings non-null; the effect
@@ -95,7 +113,7 @@ export function RateReveal({
 
     if (!finalised.current) {
       finalised.current = true
-      void onFinalise(row, final, me, them)
+      void onFinalise(subject, final, me, them)
     }
 
     // Count the average up once the two cards have flipped.
@@ -112,7 +130,7 @@ export function RateReveal({
       raf = requestAnimationFrame(tick)
     }, 950)
 
-    const done = setTimeout(() => onDone(row), 3600)
+    const done = setTimeout(() => onDone(subject), 3600)
     return () => {
       clearTimeout(t)
       clearTimeout(done)
@@ -121,7 +139,7 @@ export function RateReveal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, final])
 
-  const poster = tmdb.IMG(row.poster_path, 'w342')
+  const poster = tmdb.IMG(subject.poster_path, 'w342')
 
   return createPortal(
     <div className="rr-overlay">
@@ -134,7 +152,8 @@ export function RateReveal({
       )}
 
       <div className="rr-body">
-        <div className="rr-title display">{row.title}</div>
+        <div className="rr-title display">{subject.title}</div>
+        {subject.subtitle && <div className="rr-subtitle eyebrow">{subject.subtitle}</div>}
 
         {stage === 'mine' && (
           <div className="rr-panel rise" key="mine">
@@ -229,35 +248,35 @@ export function RateReveal({
 
 /* -------------------------------------------------------------------------- */
 
-async function onSubmitScore(row: TitleRow, who: Profile, score: number) {
-  await collection<TitleRow>('lj_titles').upsert({
-    id: row.id,
+async function onSubmitScore(subject: RateSubject, who: Profile, score: number) {
+  await collection<Ratable>(subject.table).upsert({
+    id: subject.row.id,
     [pendingKey(who.slug)]: score,
-  } as Partial<TitleRow>)
+  } as Partial<Ratable>)
 }
 
 async function onFinalise(
-  row: TitleRow,
+  subject: RateSubject,
   final: { mine: number; theirs: number },
   me: Profile,
   them: Profile,
 ) {
+  const row = subject.row
   const watchedOn = row.watched_on ?? new Date().toISOString().slice(0, 10)
-  await collection<TitleRow>('lj_titles').upsert({
+  await collection<Ratable>(subject.table).upsert({
     id: row.id,
+    ...(subject.finalPatch ?? {}),
     [scoreKey(me.slug)]: final.mine,
     [scoreKey(them.slug)]: final.theirs,
-    status: 'watched',
     watched_on: watchedOn,
-    new_season: false,
     pending_score_james: null,
     pending_score_lee: null,
-  } as Partial<TitleRow>)
+  } as Partial<Ratable>)
   logEvent({
-    room: row.kind === 'movie' ? 'movies' : 'shows',
-    kind: 'watched',
+    room: subject.room,
+    kind: subject.eventKind,
     refId: row.id,
-    label: row.title,
+    label: subject.eventLabel,
     happenedOn: watchedOn,
     meta: {
       score_james: me.slug === 'james' ? final.mine : final.theirs,

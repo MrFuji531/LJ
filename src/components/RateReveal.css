@@ -50,6 +50,8 @@
   text-wrap: balance;
 }
 
+.rr-subtitle { color: var(--accent-lit); margin-top: -8px; }
+
 .rr-panel {
   display: flex;
   flex-direction: column;
