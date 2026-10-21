@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
 import './Venues.css'
 
-import { useCollection } from '../lib/collection'
+import { collection, useCollection } from '../lib/collection'
+import { sb } from '../lib/supabase'
+import { parseVenueImport, venueImportKey, type VenueImportEntry } from '../lib/venueImport'
 import { logEvent, unlogEvent, today } from '../lib/events'
 import { makeThumb, normalizePhoto, uploadMedia, removeMedia, mediaUrl, fileExt } from '../lib/media'
 import type { Profile } from '../lib/session'
@@ -63,12 +65,15 @@ export function VenuesTab({ kind, me }: { kind: 'nachos' | 'salad'; me: Profile 
   const [addingNew, setAddingNew] = useState(false)
   const [importing, setImporting] = useState(false)
   const [placing, setPlacing] = useState<VenueRow | null>(null)
+  const [query, setQuery] = useState('')
 
   const mine = useMemo(
     () =>
       rows
         .filter((r) => r.kind === kind)
-        .sort((a, b) => a.name.localeCompare(b.name)),
+        // Random UUIDs give the nachos checklist a stable shuffled order.
+        // Personal rankings below continue to use their explicit rank.
+        .sort((a, b) => kind === 'nachos' ? a.id.localeCompare(b.id) : a.name.localeCompare(b.name)),
     [rows, kind],
   )
   const untried = useMemo(() => mine.filter((v) => !v.visited), [mine])
@@ -80,6 +85,10 @@ export function VenuesTab({ kind, me }: { kind: 'nachos' | 'salad'; me: Profile 
     [mine],
   )
   const tray = useMemo(() => mine.filter((v) => v.visited && v.rank == null), [mine])
+  const visible = useMemo(() => {
+    const term = query.trim().toLocaleLowerCase()
+    return term ? mine.filter((v) => [v.name, v.suburb, v.address].join(' ').toLocaleLowerCase().includes(term)) : mine
+  }, [mine, query])
 
   /* --- actions ---------------------------------------------------------- */
 
@@ -120,11 +129,12 @@ export function VenuesTab({ kind, me }: { kind: 'nachos' | 'salad'; me: Profile 
   }
 
   const pickForUs = () => {
-    if (!untried.length) {
+    const options = visible.filter((v) => !v.visited)
+    if (!options.length) {
       toast('Nothing left to try — add more spots', 'bad')
       return
     }
-    const pick = untried[Math.floor(Math.random() * untried.length)]
+    const pick = options[Math.floor(Math.random() * options.length)]
     const el = listRef.current?.querySelector(`[data-vid="${pick.id}"]`)
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     el?.classList.remove('is-picked')
@@ -197,7 +207,10 @@ export function VenuesTab({ kind, me }: { kind: 'nachos' | 'salad'; me: Profile 
                 </button>
               </div>
 
-              {mine.map((v) => (
+              <input aria-label="Search venues" type="search" placeholder="Search name, suburb or address" value={query} onChange={(e) => setQuery(e.target.value)} />
+              {query.trim() && <p className="muted">{visible.length} matching spot{visible.length === 1 ? '' : 's'}</p>}
+
+              {visible.map((v) => (
                 <div key={v.id} data-vid={v.id} className={`venue-item card ${v.visited ? 'is-done' : ''}`}>
                   <button
                     className={`mcu-tick ${v.visited ? 'is-on' : ''}`}
@@ -376,20 +389,36 @@ export function VenuesTab({ kind, me }: { kind: 'nachos' | 'salad'; me: Profile 
         copy={copy}
         onClose={() => setImporting(false)}
         onImport={async (entries) => {
-          await Promise.all(
-            entries.map((e) =>
-              upsert({
+          const store = collection<VenueRow>('lj_venues')
+          const client = sb()
+          if (client) {
+            await store.load()
+            if (store.getStatus() !== 'live') throw new Error('Could not load existing spots. Please try again when connected.')
+          }
+          const known = new Set(store.snapshot().filter((r) => r.kind === kind).map(venueImportKey))
+          const additions = entries.filter((entry) => {
+            const key = venueImportKey(entry)
+            if (known.has(key)) return false
+            known.add(key)
+            return true
+          }).map((e) => ({
                 id: uid(), kind, name: e.name, suburb: e.suburb,
-                address: null, url: null, price: null, notes: null,
+                address: e.address ?? null, url: e.url ?? null, price: e.price ?? null, notes: e.notes ?? null,
                 visited: false, visited_on: null, rank: null,
                 photo_path: null, photo_thumb: null, video_path: null,
                 score_james: null, score_lee: null, notes_james: null, notes_lee: null,
                 added_by: me.slug, created_at: new Date().toISOString(),
-              } as VenueRow),
-            ),
-          )
+              } as VenueRow))
+          if (additions.length && client) {
+            // One atomic insert; surface errors instead of reporting queued writes as saved.
+            const { error } = await client.from('lj_venues').insert(additions)
+            if (error) throw new Error(error.message)
+            await store.load()
+          } else {
+            for (const entry of additions) await upsert(entry)
+          }
           setImporting(false)
-          toast(`${entries.length} spot${entries.length === 1 ? '' : 's'} on the list`, 'good')
+          toast(`${additions.length} spot${additions.length === 1 ? '' : 's'} added${entries.length > additions.length ? ' · existing spots kept' : ''}`, 'good')
         }}
       />
     </>
@@ -423,6 +452,7 @@ function VenueSheet({
   const toast = useToast()
   const [name, setName] = useState('')
   const [suburb, setSuburb] = useState('')
+  const [address, setAddress] = useState('')
   const [price, setPrice] = useState('')
   const [url, setUrl] = useState('')
   const [notes, setNotes] = useState('')
@@ -442,6 +472,7 @@ function VenueSheet({
     openedFor.current = target
     setName(row?.name ?? '')
     setSuburb(row?.suburb ?? '')
+    setAddress(row?.address ?? '')
     setPrice(row?.price != null ? String(row.price) : '')
     setUrl(row?.url ?? '')
     setNotes(row?.notes ?? '')
@@ -518,6 +549,7 @@ function VenueSheet({
                 onSave({
                   name: name.trim(),
                   suburb: suburb.trim() || null,
+                  address: address.trim() || null,
                   price: price ? Number(price) : null,
                   url: url.trim() || null,
                   notes: notes.trim() || null,
@@ -539,7 +571,9 @@ function VenueSheet({
           <Field label="Suburb"><input value={suburb} onChange={(e) => setSuburb(e.target.value)} placeholder="Fitzroy" /></Field>
           <Field label="Price"><input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" placeholder="24.00" /></Field>
         </div>
+        <Field label="Address"><input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" /></Field>
         <Field label="Link" hint="Menu, maps, whatever."><input value={url} onChange={(e) => setUrl(e.target.value)} inputMode="url" placeholder="https://" /></Field>
+        {/^https?:\/\//i.test(url) && <a className="btn btn-outline btn-sm" href={url} target="_blank" rel="noopener noreferrer">Open menu or source</a>}
 
         {row?.visited && (
           <Field label="When did we go?" hint="Backdate it if you're logging late.">
@@ -547,7 +581,7 @@ function VenueSheet({
           </Field>
         )}
 
-        <Field label="Notes"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What to order, verdicts, the works…" /></Field>
+        <Field label="Notes"><textarea className="venue-notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="What to order, verdicts, the works…" /></Field>
 
         {row && (
           <>
@@ -616,24 +650,18 @@ function ImportSheet({
   open: boolean
   copy: (typeof COPY)[keyof typeof COPY]
   onClose: () => void
-  onImport: (entries: { name: string; suburb: string | null }[]) => Promise<void>
+  onImport: (entries: VenueImportEntry[]) => Promise<void>
 }) {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [filename, setFilename] = useState('')
 
-  const entries = useMemo(
-    () =>
-      text
-        .split('\n')
-        .map((l) => l.trim().replace(/^[-•*\d.)\s]+/, ''))
-        .filter(Boolean)
-        .map((l) => {
-          const m = l.split(/\s+[—–|]\s+|,\s+/)
-          return { name: m[0].trim(), suburb: m[1]?.trim() || null }
-        })
-        .filter((e) => e.name),
-    [text],
-  )
+  const parsed = useMemo(() => {
+    try { return { entries: parseVenueImport(text), error: '' } }
+    catch (e) { return { entries: [], error: e instanceof Error ? e.message : 'Could not read this list.' } }
+  }, [text])
+  const entries = parsed.entries
 
   return (
     <Sheet
@@ -646,9 +674,13 @@ function ImportSheet({
           disabled={!entries.length || busy}
           onClick={async () => {
             setBusy(true)
+            setError('')
             try {
               await onImport(entries)
               setText('')
+              setFilename('')
+            } catch (e) {
+              setError(e instanceof Error ? e.message : 'Import failed. Please try again.')
             } finally {
               setBusy(false)
             }
@@ -659,18 +691,50 @@ function ImportSheet({
         </button>
       }
     >
-      <Field
+      {copy.title === 'Nachos' && (
+        <button className="btn btn-accent btn-sm" disabled={busy} onClick={async () => {
+          setBusy(true)
+          setError('')
+          try {
+            const response = await fetch(`${import.meta.env.BASE_URL}data/nachos-2026-10-22.json`)
+            if (!response.ok) throw new Error('Could not load the saved nachos list.')
+            setText(await response.text())
+            setFilename('Confirmed nachos · 22 October 2026')
+          } catch (e) {
+            setError(e instanceof Error ? e.message : 'Could not load the list.')
+          } finally { setBusy(false) }
+        }} data-pressable>
+          Load confirmed nachos
+        </button>
+      )}
+      <label className="btn btn-outline btn-sm set-import">
+        Choose a venue file
+        <input type="file" accept=".json,.txt,application/json,text/plain" hidden aria-label="Import venue file" disabled={busy} onChange={async (e) => {
+          const file = e.target.files?.[0]
+          e.target.value = ''
+          if (!file) return
+          try {
+            setText(await file.text())
+            setFilename(file.name)
+            setError('')
+          } catch { setError('Could not read the file.') }
+        }} />
+      </label>
+      {filename && <p className="muted venue-file-name">{filename}</p>}
+      {!filename && <Field
         label="One spot per line"
         hint={'Add a suburb with a comma or dash: "El Rincon, Fitzroy". Numbering and bullets are stripped.'}
       >
         <textarea
           className="import-box"
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => { setText(e.target.value); setFilename(''); setError('') }}
           placeholder={'El Rincon, Fitzroy\nCasa Nacho — Brunswick\nLoco Taqueria'}
           autoFocus
         />
-      </Field>
+      </Field>}
+      {filename && entries.length > 0 && <p className="muted">Names, suburbs, addresses, menu links and notes are ready to import. Existing spots are kept.</p>}
+      {(error || parsed.error) && <p role="alert">{error || parsed.error}</p>}
       {entries.length > 0 && (
         <p className="muted place-hint">
           {entries.length} spot{entries.length === 1 ? '' : 's'} ready
