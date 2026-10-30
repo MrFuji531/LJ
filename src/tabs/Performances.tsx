@@ -59,7 +59,7 @@ export function PerformancesTab({ me }: { me: Profile }) {
       {[[String(entries.length), 'Seen'], [mean((r) => r.score_lee), 'Lee avg'], [mean((r) => r.score_james), 'James avg'], [mean(average), 'Together']].map(([value, label]) =>
         <div className="stat-cell" key={label}><div className="stat-cell-value">{value}</div><div className="eyebrow">{label}</div></div>)}
     </div>
-    <p className="muted performance-note">Ratings out of 5 · {category.label}</p>
+    <p className="muted performance-note">Ratings out of 10 · {category.label}</p>
     {status === 'error' && <p role="status" className="muted">Changes are saved on this device and waiting to sync. Please check your connection.</p>}
     {entries.length > 0 && <div className="filters scroll-x" aria-label="Sort performances">
       {([['recent', 'Recent'], ['best', 'Best'], ['worst', 'Worst'], ['az', 'A–Z'], ['gap', 'Biggest gap']] as [Sort, string][]).map(([id, label]) =>
@@ -109,7 +109,7 @@ function PerformanceEditor({ row, category, onClose, onSave, onDelete }: {
   const [james, setJames] = useState(row ? String(row.score_james) : '')
   const [busy, setBusy] = useState(false)
   const toast = useToast()
-  const score = (value: string) => value.trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 5 && Number.isInteger(Number(value) * 2)
+  const score = (value: string) => value.trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 10 && Number.isInteger(Number(value) * 2)
   const valid = name.trim() && date && score(lee) && score(james)
   return <Sheet open onClose={onClose} title={row ? 'Edit performance' : `Add a ${category.singular}`} footer={<>
     {onDelete && <button className="btn btn-danger btn-sm" disabled={busy} onClick={onDelete} aria-label="Delete performance" data-pressable><Icon name="trash" size={16} /></button>}
@@ -124,10 +124,10 @@ function PerformanceEditor({ row, category, onClose, onSave, onDelete }: {
     <Field label={category.id === 'concert' ? 'Artist / event name' : 'Performance name'}><input value={name} onChange={(e) => setName(e.target.value)} placeholder={category.id === 'concert' ? 'Artist, band or gig' : 'Name of the show'} autoFocus={!row} maxLength={200} /></Field>
     <Field label="Date"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></Field>
     <div className="two-up">
-      <Field label="Lee’s rating / 5"><input type="number" inputMode="decimal" min="0" max="5" step="0.5" value={lee} onChange={(e) => setLee(e.target.value)} placeholder="0–5" required /></Field>
-      <Field label="James’ rating / 5"><input type="number" inputMode="decimal" min="0" max="5" step="0.5" value={james} onChange={(e) => setJames(e.target.value)} placeholder="0–5" required /></Field>
+      <Field label="Lee’s rating / 10"><input type="number" inputMode="decimal" min="0" max="10" step="0.5" value={lee} onChange={(e) => setLee(e.target.value)} placeholder="0–10" required /></Field>
+      <Field label="James’ rating / 10"><input type="number" inputMode="decimal" min="0" max="10" step="0.5" value={james} onChange={(e) => setJames(e.target.value)} placeholder="0–10" required /></Field>
     </div>
-    <p className="muted performance-note">Half points welcome, just like movies.</p>
+    <p className="muted performance-note">Half points welcome.</p>
     {score(lee) && score(james) && <ScorePair mine={Number(james)} theirs={Number(lee)} myName="James" theirName="Lee" />}
   </Sheet>
 }

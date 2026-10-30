@@ -8,7 +8,7 @@ A private app for two people. Nine rooms under one roof:
 | **Cuisines** | 193-country wheel, rankings, a "not in Melbourne" parking list |
 | **Movies** / **TV Shows** | Both rate independently; averages and genre insights. Shows are rated per season and collated |
 | **Watchlist** | Countdowns to release |
-| **Live Performances** | Plays, musicals and concerts/gigs: name, date, both ratings out of 5 and averages |
+| **Live Performances** | Plays, musicals and concerts/gigs: name, date, both ratings out of 10 and averages |
 | **MCU** | Franchise rewatch in order, plus hero / villain / love-interest boards |
 | **Nachos** / **Salad Sangas** | Melbourne venue rankings |
 | **To-Do** | Things we want to do |
