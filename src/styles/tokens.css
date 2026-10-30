@@ -97,3 +97,5 @@
 [data-tab='nachos']    { --accent: var(--flame);  --accent-lit: #FFA07A;           --accent-dim: var(--flame-dim); }
 [data-tab='salads']    { --accent: var(--leaf);   --accent-lit: #B4E06B;           --accent-dim: var(--leaf-dim); }
 [data-tab='todo']      { --accent: var(--jade);   --accent-lit: #7BE0BE;           --accent-dim: var(--jade-dim); }
+
+[data-tab='live'] { --accent: var(--gold); --accent-lit: var(--gold-lit); --accent-dim: var(--gold-dim); }

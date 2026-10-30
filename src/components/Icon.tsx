@@ -2,6 +2,7 @@ type IconName = keyof typeof PATHS
 
 /** 24×24 stroke icons. Single source so weight and join style stay consistent. */
 const PATHS = {
+  stage: 'M3 4h18v15H3V4ZM3 7h18M12 7c-1 5-4 7-9 7m9-7c1 5 4 7 9 7M6 14l1 5m11-5-1 5M2 21h20',
   positions: 'M12 20.5S3.5 15 3.5 9.2A4.7 4.7 0 0 1 12 6.6a4.7 4.7 0 0 1 8.5 2.6c0 5.8-8.5 11.3-8.5 11.3Z',
   cuisines:
     'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3.2 9h17.6M3.2 15h17.6M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18Z',

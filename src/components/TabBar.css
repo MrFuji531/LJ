@@ -22,7 +22,7 @@
 }
 
 .nav-item {
-  /* Inactive tabs shrink to their icon so all eight fit without scrolling. */
+  /* Inactive tabs shrink to their icon so all rooms fit without scrolling. */
   flex: 1 1 0;
   min-width: 0;
   min-height: 44px;
@@ -72,8 +72,8 @@
   margin-left: 7px;
 }
 
-/* Each room keeps its own colour, so the rail reads as eight places rather
-   than eight copies of whatever is currently open. */
+/* Each room keeps its own colour, so the rail reads as distinct places rather
+   than copies of whatever is currently open. */
 .nav-item[data-tab='positions'] { --nav-accent: var(--rose);   --nav-tint: var(--rose-dim); }
 .nav-item[data-tab='cuisines']  { --nav-accent: var(--gold);   --nav-tint: var(--gold-dim); }
 .nav-item[data-tab='movies']    { --nav-accent: var(--violet); --nav-tint: var(--violet-dim); }
@@ -88,3 +88,5 @@
   .nav-rail { justify-content: flex-start; }
   .nav-item { flex: 0 0 auto; min-width: 40px; }
 }
+
+.nav-item[data-tab='live'] { --nav-accent: var(--gold); --nav-tint: var(--gold-dim); }

@@ -13,6 +13,7 @@ import { CuisinesTab } from './tabs/Cuisines'
 import { TitlesTab } from './tabs/Titles'
 import { McuTab } from './tabs/Mcu'
 import { VenuesTab } from './tabs/Venues'
+import { PerformancesTab } from './tabs/Performances'
 import { TodoTab } from './tabs/Todo'
 
 import { useSession, profileOf } from './lib/session'
@@ -87,6 +88,7 @@ export function App() {
             {tab === 'cuisines' && <CuisinesTab me={me} />}
             {tab === 'movies' && <TitlesTab kind="movie" me={me} />}
             {tab === 'shows' && <TitlesTab kind="tv" me={me} />}
+            {tab === 'live' && <PerformancesTab me={me} />}
             {tab === 'mcu' && <McuTab me={me} />}
             {tab === 'nachos' && <VenuesTab kind="nachos" me={me} />}
             {tab === 'salads' && <VenuesTab kind="salad" me={me} />}

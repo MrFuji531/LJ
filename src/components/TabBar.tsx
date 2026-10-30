@@ -7,6 +7,7 @@ export const TABS = [
   { id: 'cuisines', label: 'Cuisines', short: 'Cuisines', icon: 'cuisines' },
   { id: 'movies', label: 'Movies', short: 'Movies', icon: 'movies' },
   { id: 'shows', label: 'TV Shows', short: 'TV', icon: 'shows' },
+  { id: 'live', label: 'Live Performances', short: 'Live', icon: 'stage' },
   { id: 'mcu', label: 'MCU Rewatch', short: 'MCU', icon: 'mcu' },
   { id: 'nachos', label: 'Nachos', short: 'Nachos', icon: 'nachos' },
   { id: 'salads', label: 'Salad Sangas', short: 'Sangas', icon: 'salads' },
@@ -21,7 +22,7 @@ export const TABS = [
 export type TabId = (typeof TABS)[number]['id']
 
 /**
- * All eight rooms are on screen at once — no scrolling, nothing out of reach.
+ * All rooms are on screen at once — no scrolling, nothing out of reach.
  * Inactive tabs are icon-only; the active one expands into a labelled pill.
  * (The old rail scrolled horizontally, which works with a finger but is
  * near-impossible with a mouse, and put the last tabs off the edge.)

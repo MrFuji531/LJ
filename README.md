@@ -8,6 +8,7 @@ A private app for two people. Nine rooms under one roof:
 | **Cuisines** | 193-country wheel, rankings, a "not in Melbourne" parking list |
 | **Movies** / **TV Shows** | Both rate independently; averages and genre insights. Shows are rated per season and collated |
 | **Watchlist** | Countdowns to release |
+| **Live Performances** | Plays, musicals and concerts/gigs: name, date, both ratings out of 5 and averages |
 | **MCU** | Franchise rewatch in order, plus hero / villain / love-interest boards |
 | **Nachos** / **Salad Sangas** | Melbourne venue rankings |
 | **To-Do** | Things we want to do |
@@ -75,3 +76,5 @@ broadcast and each device counts down against a server-corrected clock
 **Press states fire on `pointerdown`, not `click`.** A web button bound to
 `click` only reacts when the finger lifts; a native one depresses when it
 lands. That gap is most of what makes a web app feel like a web page.
+
+Live performances use `0008_live_performances.sql`; apply it before deploying the Live tab. The table uses the same authenticated access, realtime sync, offline queue and backup flow as other collections.
