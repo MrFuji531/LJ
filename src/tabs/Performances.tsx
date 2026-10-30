@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useCollection } from '../lib/collection'
+import { makeThumb, normalizePhoto, uploadMedia, mediaUrl } from '../lib/media'
 import { logEvent, unlogEvent } from '../lib/events'
 import type { Profile } from '../lib/session'
 import { Icon } from '../components/Icon'
@@ -20,6 +21,8 @@ type Performance = {
   performed_on: string
   score_james: number
   score_lee: number
+  photo_path: string | null
+  photo_thumb: string | null
   added_by: string | null
   created_at?: string
   updated_at?: string
@@ -68,7 +71,7 @@ export function PerformancesTab({ me }: { me: Profile }) {
     <div className="stack">
       {!entries.length ? <EmptyState icon={<Icon name="stage" size={40} />} title={`No ${category.label.toLowerCase()} yet`} hint="Add the name, date and your two ratings to start the collection." action={<button className="btn btn-accent" onClick={() => setEditing('new')} data-pressable>Add a {category.singular}</button>} />
         : ordered.map((p) => <button key={p.id} className="card performance-card" onClick={() => setEditing(p)} data-pressable data-press-scale="subtle">
-          <span className="performance-icon"><Icon name="stage" size={25} /></span>
+          <span className="performance-icon">{p.photo_thumb ? <img src={p.photo_thumb} alt="" /> : <Icon name="stage" size={25} />}</span>
           <div className="performance-body">
             <div className="performance-name">{p.name}</div>
             <div className="performance-date">{prettyDate(p.performed_on)}</div>
@@ -100,7 +103,7 @@ function PerformanceEditor({ row, category, onClose, onSave, onDelete }: {
   row: Performance | null
   category: typeof CATEGORIES[number]
   onClose: () => void
-  onSave: (patch: Pick<Performance, 'name' | 'performed_on' | 'score_lee' | 'score_james'>) => Promise<void>
+  onSave: (patch: Pick<Performance, 'name' | 'performed_on' | 'score_lee' | 'score_james' | 'photo_path' | 'photo_thumb'>) => Promise<void>
   onDelete?: () => Promise<void>
 }) {
   const [name, setName] = useState(row?.name ?? '')
@@ -108,16 +111,50 @@ function PerformanceEditor({ row, category, onClose, onSave, onDelete }: {
   const [lee, setLee] = useState(row ? String(row.score_lee) : '')
   const [james, setJames] = useState(row ? String(row.score_james) : '')
   const [busy, setBusy] = useState(false)
+  const [photo, setPhoto] = useState<{ path: string | null; thumb: string; blob?: Blob; ext?: string } | null>(
+    row?.photo_thumb ? { path: row.photo_path, thumb: row.photo_thumb } : null,
+  )
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const [fullPhoto, setFullPhoto] = useState<string | null>(null)
+  useEffect(() => {
+    let active = true
+    setFullPhoto(null)
+    if (photo?.blob) {
+      const url = URL.createObjectURL(photo.blob)
+      setFullPhoto(url)
+      return () => { active = false; URL.revokeObjectURL(url) }
+    }
+    if (photo?.path) void mediaUrl(photo.path).then((url) => { if (active) setFullPhoto(url) }).catch(() => {})
+    return () => { active = false }
+  }, [photo])
   const toast = useToast()
+  const pickPhoto = async (file: File) => {
+    setPhotoBusy(true)
+    try {
+      const { blob, ext } = await normalizePhoto(file)
+      const thumb = await makeThumb(blob)
+      setPhoto({ path: null, thumb, blob, ext })
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Could not read that photo.', 'bad')
+    } finally { setPhotoBusy(false) }
+  }
   const score = (value: string) => value.trim() !== '' && Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 10 && Number.isInteger(Number(value) * 2)
   const valid = name.trim() && date && score(lee) && score(james)
-  return <Sheet open onClose={onClose} title={row ? 'Edit performance' : `Add a ${category.singular}`} footer={<>
+  return <Sheet open onClose={() => { if (!busy) onClose() }} title={row ? 'Edit performance' : `Add a ${category.singular}`} footer={<>
     {onDelete && <button className="btn btn-danger btn-sm" disabled={busy} onClick={onDelete} aria-label="Delete performance" data-pressable><Icon name="trash" size={16} /></button>}
-    <button className="btn btn-accent" disabled={!valid || busy} onClick={async () => {
-      if (!valid || busy) return
+    <button className="btn btn-accent" disabled={!valid || busy || photoBusy} onClick={async () => {
+      if (!valid || busy || photoBusy) return
       setBusy(true)
-      try { await onSave({ name: name.trim(), performed_on: date, score_lee: Number(lee), score_james: Number(james) }) }
-      catch { toast('Could not save. Please try again.', 'bad') }
+      try {
+        let path = photo?.path ?? null
+        if (photo?.blob) {
+          path = `performances/${crypto.randomUUID()}.${photo.ext}`
+          await uploadMedia(path, photo.blob)
+          setPhoto({ path, thumb: photo.thumb })
+        }
+        await onSave({ name: name.trim(), performed_on: date, score_lee: Number(lee), score_james: Number(james), photo_path: path, photo_thumb: photo?.thumb ?? null })
+      }
+      catch (error) { toast(error instanceof Error ? error.message : 'Could not save. Please try again.', 'bad') }
       finally { setBusy(false) }
     }} data-pressable>{busy ? 'Saving…' : 'Save'}</button>
   </>}>
@@ -128,6 +165,17 @@ function PerformanceEditor({ row, category, onClose, onSave, onDelete }: {
       <Field label="James’ rating / 10"><input type="number" inputMode="decimal" min="0" max="10" step="0.5" value={james} onChange={(e) => setJames(e.target.value)} placeholder="0–10" required /></Field>
     </div>
     <p className="muted performance-note">Half points welcome.</p>
+    {photo && <div className="performance-photo-preview"><img src={fullPhoto ?? photo.thumb} alt="Performance photo preview" /></div>}
+    <label className="btn btn-quiet btn-block btn-sm set-import performance-photo-picker" data-pressable>
+      <Icon name="camera" size={16} />
+      {photoBusy ? 'Preparing photo…' : photo ? 'Replace photo' : 'Add a photo'}
+      <input type="file" accept="image/*,.heic,.heif" hidden aria-label={photo ? 'Replace photo' : 'Add a photo'} disabled={busy || photoBusy} onChange={(e) => {
+        const file = e.target.files?.[0]
+        e.target.value = ''
+        if (file) void pickPhoto(file)
+      }} />
+    </label>
+    {photo && <button className="btn btn-quiet btn-sm" disabled={busy || photoBusy} onClick={() => setPhoto(null)} data-pressable>Remove photo</button>}
     {score(lee) && score(james) && <ScorePair mine={Number(james)} theirs={Number(lee)} myName="James" theirName="Lee" />}
   </Sheet>
 }
